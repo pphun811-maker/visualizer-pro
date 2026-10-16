@@ -4,6 +4,8 @@
 
 ## 自动验证
 
+- 文件选择窗口：`scripts/Test-FileDialog.ps1` / `--file-dialog-test <目录>` 实际打开 Windows 原生文件窗口并发送关闭消息取消；实时与冻结模式均检查窗口内仪表停止绘制、取消恢复、冻结保留及异常恢复。`artifacts/file-dialog-source/file-dialog.json` 的 10 项通过，音频丢块 0。此检查不模拟文件列表滚动或物理鼠标，不作为资源管理器所有目录的响应时间保证。
+- 发布包 `artifacts/file-dialog-package/file-dialog.json` 相同 10 项检查通过，音频丢块 0；`artifacts/file-dialog-regression/integration.json` 的 12 组播放、定位、循环、冻结、设备恢复与多格式解码回归全部通过。
 - 面板按钮与快捷键：`artifacts/panel-controls-source-fixed/spectral.json` 的 5 组检查通过，新增主键盘/小键盘 1/2/3、V、F1/Esc，面板按钮与顶部选择/持久化同步、冻结帧保持、输入框与展开下拉的按键保护，以及专注模式下四个面板的放大/还原和实际 WPF 命中检查；图表截图会合成面板按钮。F1 说明为主动打开的独立窗口，不是悬停弹窗。源码三维短测约 100.8 FPS，音频丢块 0；面板与说明截图已目视检查。首次检查发现下拉焦点转移时保护不足，已修复；失败目录 `artifacts/panel-controls-source` 不作为通过证据。
 - 发布包 `artifacts/panel-controls-package/spectral.json` 与 `artifacts/panel-controls-software/spectral.json`：同样 5 组检查均通过，OpenGL / 软件绘制短测约 105.6 / 27.6 FPS，音频丢块均为 0。控件在软件回退中保留，主动帮助窗口正常打开/关闭。
 - `artifacts/panel-controls-regression/integration.json` 的 12 组桌面回归与 `artifacts/panel-controls-input/input.json` 的 6 组原有交互检查通过。冻结探针、滑块最终提交、恢复刷新正常，60 次滑块变化合并为 35 次参数应用，音频丢块 0；WPF 输入队列 P95 约 60.6 ms / 最大 548.6 ms，受测试调度和绘制影响，未作为物理输入延迟或手感验收。

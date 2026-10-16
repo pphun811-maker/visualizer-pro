@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private long lastFrameUpdate;
     private AudioDeviceSnapshot? lastDeviceSnapshot;
     private bool movingWindow;
+    private int fileDialogDepth;
     private HwndSource? windowSource;
     private Rect windowBounds;
     private string deviceSignature = "";
@@ -144,6 +145,15 @@ public partial class MainWindow : Window
     private void OnTick(object? sender, EventArgs e)
     {
         if (closing) return;
+        if (fileDialogDepth > 0)
+        {
+            // The shell dialog pumps this dispatcher too. Leave audio/history
+            // running without competing with Explorer for rendering and layout.
+            if (!fileMode && !demo) system.PumpSilence();
+            SyncAnalysisFrame();
+            if (fileMode && LoopCheck.IsChecked == true && loopA >= 0 && loopB > loopA && player.Position >= loopB && player.Playing) Seek(loopA);
+            return;
+        }
         tick++;
         UpdateInteraction();
         var devices = deviceMonitor.Latest;
@@ -206,12 +216,12 @@ public partial class MainWindow : Window
         var currentSettings = engine.Settings;
         if (next.Settings.FftSize != currentSettings.FftSize || next.Settings.Window != currentSettings.Window || next.Settings.Channel != currentSettings.Channel || next.Settings.SmoothingOctaves != currentSettings.SmoothingOctaves) return;
         CollectHistory(next);
-        if (frozen || ReferenceEquals(displayFrame, next)) return;
+        if (fileDialogDepth > 0 || frozen || ReferenceEquals(displayFrame, next)) return;
         displayFrame = next; foreach (var panel in panels) panel.Frame = next;
     }
     private void UpdateRenderActivity()
     {
-        bool active = IsVisible && WindowState != WindowState.Minimized && !frozen && !movingWindow && !interacting;
+        bool active = fileDialogDepth == 0 && IsVisible && WindowState != WindowState.Minimized && !frozen && !movingWindow && !interacting;
         foreach (var panel in panels) panel.SetRenderActivity(active);
     }
     public bool TrySoftwareRendering(Exception error)
@@ -220,7 +230,7 @@ public partial class MainWindow : Window
         foreach (var panel in panels) panel.EnableSoftware();
         stateText = "已切换到兼容绘制模式"; return true;
     }
-    private void Redraw() { foreach (var panel in panels) if (panel.IsVisible) panel.InvalidateVisual(); }
+    private void Redraw() { if (fileDialogDepth > 0) return; foreach (var panel in panels) if (panel.IsVisible) panel.InvalidateVisual(); }
     private void ClearDisplay()
     {
         displayFrame = null; foreach (var panel in panels) panel.Frame = null; Spectrogram.ResetHistory();
@@ -356,7 +366,21 @@ public partial class MainWindow : Window
     private async void OnOpenFile(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Filter = "音频文件|*.wav;*.flac;*.mp3;*.aac;*.m4a;*.ogg;*.opus;*.aif;*.aiff|所有文件|*.*", Title = "打开音频文件" };
-        if (dialog.ShowDialog(this) == true) await OpenFile(dialog.FileName);
+        if (ShowFileDialog(dialog) == true) await OpenFile(dialog.FileName);
+    }
+    private bool? ShowFileDialog(CommonDialog dialog) => RunFileDialog(() => dialog.ShowDialog(this));
+    private bool? RunFileDialog(Func<bool?> show)
+    {
+        fileDialogDepth++;
+        try { UpdateRenderActivity(); return show(); }
+        finally
+        {
+            fileDialogDepth--;
+            if (fileDialogDepth == 0 && !closing)
+            {
+                SyncAnalysisFrame(); UpdateHistoryControls(); UpdateRenderActivity(); Redraw();
+            }
+        }
     }
     private async Task OpenFile(string path)
     {
@@ -516,13 +540,13 @@ public partial class MainWindow : Window
     private void ExportScreenshot()
     {
         var dialog = new SaveFileDialog { Filter = "PNG 图片|*.png", FileName = $"VisualizerPro-{DateTime.Now:yyyyMMdd-HHmmss}.png" };
-        if (dialog.ShowDialog(this) == true) { try { SaveScreenshot(dialog.FileName); stateText = "已导出截图"; } catch (IOException e) { Report(e); } }
+        if (ShowFileDialog(dialog) == true) { try { SaveScreenshot(dialog.FileName); stateText = "已导出截图"; } catch (IOException e) { Report(e); } }
     }
     private void ExportCsv()
     {
         if (displayFrame is not { } f) return;
         var dialog = new SaveFileDialog { Filter = "CSV 频谱|*.csv", FileName = $"spectrum-{DateTime.Now:yyyyMMdd-HHmmss}.csv" };
-        if (dialog.ShowDialog(this) != true) return;
+        if (ShowFileDialog(dialog) != true) return;
         try
         {
             var csv = new StringBuilder("FrequencyHz,LevelDbfs,AverageDbfs,PeakDbfs,Channel,FftSize,Window\r\n");
@@ -534,11 +558,11 @@ public partial class MainWindow : Window
     private void ExportSnapshots()
     {
         var dialog = new SaveFileDialog { Filter = "参考快照|*.json", FileName = "VisualizerPro-references.json" };
-        if (dialog.ShowDialog(this) == true) try { File.WriteAllText(dialog.FileName, JsonSerializer.Serialize(snapshots, SettingsStore.Json)); } catch (IOException e) { Report(e); }
+        if (ShowFileDialog(dialog) == true) try { File.WriteAllText(dialog.FileName, JsonSerializer.Serialize(snapshots, SettingsStore.Json)); } catch (IOException e) { Report(e); }
     }
     private void ImportSnapshots()
     {
-        var dialog = new OpenFileDialog { Filter = "参考快照|*.json" }; if (dialog.ShowDialog(this) != true) return;
+        var dialog = new OpenFileDialog { Filter = "参考快照|*.json" }; if (ShowFileDialog(dialog) != true) return;
         try
         {
             if (new FileInfo(dialog.FileName).Length > 4 * 1024 * 1024) throw new InvalidDataException("参考文件过大。");

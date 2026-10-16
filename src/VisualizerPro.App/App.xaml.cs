@@ -16,12 +16,14 @@ public partial class App : Application
             args.Handled = true;
         };
         bool smoke = e.Args.Contains("--smoke-test");
+        int fileDialog = Array.IndexOf(e.Args, "--file-dialog-test");
         var window = new MainWindow(smoke || e.Args.Contains("--demo") || e.Args.Contains("--performance-test") || e.Args.Contains("--input-test") || e.Args.Contains("--visual-test") || e.Args.Contains("--exploration-test") || e.Args.Contains("--spectral-test")); MainWindow = window; window.Show();
         if (smoke)
         {
             _ = CaptureSmoke(window, e.Args);
         }
         int integration = Array.IndexOf(e.Args, "--integration-test");
+        if (fileDialog >= 0 && e.Args.Length > fileDialog + 1) _ = window.RunFileDialogChecks(Path.GetFullPath(e.Args[fileDialog + 1]));
         if (integration >= 0 && e.Args.Length > integration + 1) _ = window.RunIntegration(Path.GetFullPath(e.Args[integration + 1]));
         int input = Array.IndexOf(e.Args, "--input-test");
         if (input >= 0 && e.Args.Length > input + 1) _ = window.RunInputChecks(Path.GetFullPath(e.Args[input + 1]), e.Args.Contains("--native-input"));
