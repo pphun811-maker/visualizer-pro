@@ -1,0 +1,19 @@
+**/bin/
+**/obj/
+artifacts/
+tools/ffmpeg/
+.vs/
+.packages/
+*.user
+
+# Local development notes and machine-specific settings
+/HANDOFF.md
+/AGENTS.md
+.idea/
+*.suo
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.log
