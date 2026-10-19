@@ -18,7 +18,13 @@ public partial class MainWindow
         {
             await WaitFor(() => frameHistory.Count > 155, "Need eight seconds of spectral history");
             await CheckPanelControls(directory);
-            checks.Add("PASS panel buttons, 1/2/3/numpad/V shortcuts, text/dropdown guards, frozen data, expanded/focus layouts and F1 guide");
+            checks.Add("PASS panel expansion, 1/2/3/numpad/V shortcuts, text/dropdown guards, frozen data, expanded/focus layouts and F1 guide");
+            await CheckFrequencyAppearance(directory, 1);
+            checks.Add("PASS soft palette: rendered FFT/heatmap RGB, zoom invariance, frozen style switching, unchanged analysis/3D geometry and persistence");
+            await CheckFrequencyAppearance(directory, 2);
+            checks.Add("PASS standard palette: rendered FFT/heatmap RGB, zoom invariance, frozen style switching, legend/restore and legacy settings");
+            await CheckCompactAppearance(directory);
+            checks.Add("PASS compact 1120x740 layout, analysis/display settings toggles and relocated exports");
             SpectrumModeCombo.SelectedIndex = 1; HistoryModeCombo.SelectedIndex = 0;
             await Task.Delay(100);
             Check(Spectrum.Frame!.OctaveBands.Length == 31, "Octave readings must be available");
@@ -84,6 +90,7 @@ public partial class MainWindow
             WaterfallWindowCombo.SelectedIndex = 1;
             SettingsStore.Save(saved); var loaded = SettingsStore.Load();
             Check(loaded.SpectrumMode == 1 && loaded.HistoryMode == 1 && loaded.Display == saved.Display, "Spectral mode and camera persistence");
+            PaletteCombo.SelectedIndex = 2;
             HistoryLiveButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(400);
             long first = Spectrogram.RenderCount; var watch = Stopwatch.StartNew(); await Task.Delay(3000);

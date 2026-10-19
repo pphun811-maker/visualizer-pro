@@ -47,7 +47,7 @@ internal sealed class WaterfallMesh : IDisposable
                 var point = Project(sample.Item1, age, sample.Item2 + Tilt * Math.Log2(frequency / 1000));
                 int at = r * Columns + col;
                 Data[at] = new(point, sample.Item1, age, sample.Item2, frame != null); positions[at] = point;
-                colors[at] = InstrumentView.Heat((sample.Item2 + Tilt * Math.Log2(frequency / 1000) - Floor) / (Ceiling - Floor));
+                colors[at] = FrequencyPalette.Heat((sample.Item2 + Tilt * Math.Log2(frequency / 1000) - Floor) / (Ceiling - Floor), frequency, display.FrequencyColors, display.FrequencyPalette);
             }
         }
         int written = 0;

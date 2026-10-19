@@ -91,6 +91,7 @@ public partial class MainWindow
             SaveScreenshot(Path.Combine(directory, "frozen-probe.png")); ToggleFreeze();
             checks.Add("PASS probe movement while measurement display is frozen");
 
+            AdvancedExpander.IsExpanded = true; UpdateLayout();
             AverageSlider.ApplyTemplate(); var track = (Track)AverageSlider.Template.FindName("PART_Track", AverageSlider);
             var thumb = track.Thumb;
             Point thumbCenter = thumb.PointToScreen(new Point(thumb.ActualWidth / 2, thumb.ActualHeight / 2));

@@ -36,7 +36,7 @@ public sealed partial class InstrumentView
         waterfallStart = Math.Clamp(waterfallStart, 0, maxStart);
         var b = PlotBounds;
         var bounds = new SKRect((float)b.Left, (float)b.Top, (float)b.Right, (float)b.Bottom);
-        object key = (source.Count, source.Count == 0 ? -1 : source[^1].Time, bounds, MinFrequency, MaxFrequency, waterfallStart, span, Settings.CeilingDb, Settings.SpectrogramRange, Settings.TiltDbPerOctave, Display.WaterfallAzimuth, Display.WaterfallElevation);
+        object key = (source.Count, source.Count == 0 ? -1 : source[^1].Time, bounds, MinFrequency, MaxFrequency, waterfallStart, span, Settings.CeilingDb, Settings.SpectrogramRange, Settings.TiltDbPerOctave, Display.WaterfallAzimuth, Display.WaterfallElevation, Display.FrequencyColors, Display.FrequencyPalette);
         if (waterfall != null && key.Equals(waterfallKey)) return waterfall;
         var previous = waterfall; previous?.Dispose();
         waterfall = new(source, bounds, MinFrequency, MaxFrequency, waterfallStart, span, Settings, Display, previous);

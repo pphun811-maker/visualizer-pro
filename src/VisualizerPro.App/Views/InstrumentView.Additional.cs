@@ -17,17 +17,18 @@ public sealed partial class InstrumentView
         for (int i = 0; i < f.StereoBands.Length; i++)
         {
             var band = f.StereoBands[i]; float y = top + i * step;
+            var color = Display.FrequencyColors ? FrequencyPalette.At(Math.Sqrt(band.LowHz * band.HighHz), Display.FrequencyPalette) : Accent;
             string Hz(double value) => value >= 1000 ? $"{value / 1000:0.#}k" : $"{value:0}";
-            Text(c, $"{Hz(band.LowHz)}–{Hz(band.HighHz)}", 22, y + 4, 10, Ink);
+            Text(c, $"{Hz(band.LowHz)}–{Hz(band.HighHz)}", 22, y + 4, 10, Display.FrequencyColors ? color : Ink);
             Line(c, barLeft, y, barRight, y, Grid, 4);
             Line(c, mid, y - 5, mid, y + 5, Muted);
             if (double.IsFinite(band.Correlation))
             {
                 float x = barLeft + (float)((band.Correlation + 1) / 2) * (barRight - barLeft);
-                using var p = new SKPaint { Color = band.Correlation < 0 ? Reference : Accent, IsAntialias = true }; c.DrawCircle(x, y, 3, p);
+                using var p = new SKPaint { Color = Display.FrequencyColors ? color : band.Correlation < 0 ? Reference : Accent, IsAntialias = true }; c.DrawCircle(x, y, 3, p);
             }
             Text(c, double.IsFinite(band.Correlation) ? $"{band.Correlation:+0.00;-0.00;0.00}" : "—", w - 69, y + 4, 10, Ink, true, true);
-            Text(c, double.IsFinite(band.SideFraction) ? $"{band.SideFraction:P0}" : "—", w - 22, y + 4, 11, Accent, true, true);
+            Text(c, double.IsFinite(band.SideFraction) ? $"{band.SideFraction:P0}" : "—", w - 22, y + 4, 11, color, true, true);
         }
         Text(c, "相关度 −1 … +1   S 占比 = S / (M + S)", 22, h - 14, 9, Muted, false);
     }

@@ -22,8 +22,8 @@ public partial class MainWindow
         Check(Spectrum.SpectrumMode == SpectrumDisplayMode.ThirdOctave && Spectrogram.HistoryMode == HistoryDisplayMode.Waterfall && Stereo.SecondaryMode == StereoDisplayMode.Bands, "Keyboard modes must update the views");
         Press(Key.NumPad1); Press(Key.NumPad2); Press(Key.NumPad3); Press(Key.V);
         Check(SpectrumModeCombo.SelectedIndex == 0 && HistoryModeCombo.SelectedIndex == 0 && SecondaryInstrumentCombo.SelectedIndex == 0, "Numpad and V aliases must cycle correctly");
-        Click(Spectrum.ModeButton); Click(Spectrogram.ModeButton); Click(Stereo.ModeButton);
-        Check(saved.SpectrumMode == 1 && saved.HistoryMode == 1 && saved.SecondaryInstrument == 1, "Header controls must share saved mode state with top selectors");
+        SpectrumModeCombo.SelectedIndex = HistoryModeCombo.SelectedIndex = SecondaryInstrumentCombo.SelectedIndex = 1;
+        Check(saved.SpectrumMode == 1 && saved.HistoryMode == 1 && saved.SecondaryInstrument == 1, "Top selectors must share saved mode state with shortcuts");
         Check(ReferenceEquals(held, displayFrame) && analysis == engine.Settings, "Switching views must preserve frozen data and analysis settings");
         await Task.Delay(100); SaveScreenshot(Path.Combine(directory, "panel-controls.png"));
 
@@ -45,7 +45,7 @@ public partial class MainWindow
             Check(expanded == panel.Kind && panel.ExpandedView && Equals(panel.ExpandButton.Content, "还原"), "Panel expand button and caption");
             if (panel.Kind != InstrumentKind.Levels)
             {
-                Click(panel.ModeButton);
+                Press(panel.Kind switch { InstrumentKind.Spectrum => Key.D1, InstrumentKind.Spectrogram => Key.D2, _ => Key.D3 });
                 Check(ReferenceEquals(held, displayFrame), "Expanded panel switch must preserve review data");
             }
             var center = panel.ExpandButton.TranslatePoint(new Point(panel.ExpandButton.ActualWidth / 2, panel.ExpandButton.ActualHeight / 2), panel);
@@ -58,7 +58,7 @@ public partial class MainWindow
         ControlsPanel.Visibility = controlsVisible ? Visibility.Visible : Visibility.Collapsed;
         Press(Key.F1); await Task.Delay(80);
         Check(shortcutsWindow?.IsVisible == true && ShortcutGuide.Contains("1：FFT") && ShortcutGuide.Contains("2：二维") && ShortcutGuide.Contains("3 或 V"), "F1 must expose current shortcuts");
-        var guide = shortcutsWindow!; Click(Levels.ModeButton);
+        var guide = shortcutsWindow!; Click(Levels.HelpButton);
         Check(ReferenceEquals(guide, shortcutsWindow), "Help button must reuse the existing help window");
         var helpImage = new RenderTargetBitmap((int)guide.ActualWidth, (int)guide.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         helpImage.Render(guide); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(helpImage));

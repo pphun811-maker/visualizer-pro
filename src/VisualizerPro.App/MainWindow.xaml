@@ -2,68 +2,71 @@
  Title="Visualizer Pro — 音频观察台" Background="#0C0C0C" Foreground="#DDDDDD" FontFamily="Microsoft YaHei UI" FontSize="12" Width="1440" Height="920" MinWidth="1120" MinHeight="740" AllowDrop="True" PreviewKeyDown="OnKeyDown" Drop="OnDrop" DragOver="OnDragOver" Closing="OnClosing" SourceInitialized="OnSourceInitialized">
  <Window.Icon><BitmapImage UriSource="Assets/app.ico"/></Window.Icon>
  <Grid Margin="20,0,20,0">
-  <Grid.RowDefinitions><RowDefinition Height="82"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="32"/></Grid.RowDefinitions>
+  <Grid.RowDefinitions><RowDefinition Height="68"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="32"/></Grid.RowDefinitions>
   <Grid Grid.Row="0">
-   <Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
    <StackPanel VerticalAlignment="Center">
-    <StackPanel Orientation="Horizontal"><TextBlock Text="▥" Foreground="#E0E0E0" FontSize="23" Margin="0,-2,9,0"/><TextBlock Text="VISUALIZER" FontFamily="Bahnschrift" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="PRO" Foreground="#E0E0E0" FontFamily="Bahnschrift" FontSize="12" Margin="7,4,0,0"/></StackPanel>
+    <StackPanel Orientation="Horizontal"><TextBlock Text="▥" Foreground="#E0E0E0" FontSize="18" Margin="0,-1,7,0"/><TextBlock Text="VISUALIZER" FontFamily="Bahnschrift" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="PRO" Foreground="#E0E0E0" FontFamily="Bahnschrift" FontSize="10" Margin="5,3,0,0"/></StackPanel>
    </StackPanel>
    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button x:Name="SystemButton" Content="系统音频" Click="OnSystem"/><Button Content="打开文件" Click="OnOpenFile" ToolTip="拖入音频文件或 Ctrl+O"/></StackPanel>
    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="15,0,15,0">
-    <ComboBox x:Name="DeviceCombo" SelectionChanged="OnDeviceChanged" MaxWidth="430" HorizontalAlignment="Left" MinWidth="260"/>
+    <ComboBox x:Name="DeviceCombo" SelectionChanged="OnDeviceChanged" MaxWidth="390" HorizontalAlignment="Left" MinWidth="210"/>
     <TextBlock x:Name="SourceLabel" Text="正在连接系统音频…" Foreground="#858585" Margin="7,2,0,0" FontSize="10" TextTrimming="CharacterEllipsis"/>
    </StackPanel>
    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
     <Button x:Name="FreezeButton" Content="冻结 F" Click="OnFreeze" ToolTip="冻结显示，播放与分析继续"/>
-    <Button Content="快照" Click="OnSnapshot" ToolTip="S：保存当前频谱作为参考，最多四张"/>
-    <Button Content="导出 ▾" Click="OnExport"/>
     <Button Content="专注 Tab" Click="OnFocus"/>
-    <Button Content="···" Click="OnMenu" ToolTip="窗口、置顶、托盘与帮助"/>
+    <Button x:Name="MoreButton" Content="更多" Click="OnMenu" ToolTip="快照、导出、窗口与帮助"/>
     <Button Content="−" Click="OnMinimize" ToolTip="最小化"/><Button Content="×" Click="OnExit" ToolTip="退出"/>
    </StackPanel>
   </Grid>
   <StackPanel Grid.Row="1" x:Name="ControlsPanel">
-   <Border Background="#1A1A1A" BorderBrush="#2A2A2A" BorderThickness="0" CornerRadius="16" Padding="9,5" Margin="0,0,0,12">
+   <Border Background="#191919" CornerRadius="14" Padding="10,7" Margin="0,0,0,12">
     <StackPanel>
      <WrapPanel VerticalAlignment="Center">
-      <TextBlock Text="视图" VerticalAlignment="Center" Foreground="#858585" Margin="5,0,5,0"/>
-      <ComboBox x:Name="PresetCombo" Width="123" SelectionChanged="OnPreset"><ComboBoxItem Content="日常观察"/><ComboBoxItem Content="频谱研究"/><ComboBoxItem Content="立体声检查"/></ComboBox>
-      <ComboBox x:Name="SpectrumModeCombo" Width="123" SelectionChanged="OnSpectrumMode"><ComboBoxItem Content="FFT 频谱"/><ComboBoxItem Content="1/3 倍频程"/></ComboBox>
-      <ComboBox x:Name="ChannelCombo" Width="97" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="Stereo"/><ComboBoxItem Content="Left"/><ComboBoxItem Content="Right"/><ComboBoxItem Content="Mid"/><ComboBoxItem Content="Side"/></ComboBox>
-      <TextBlock Text="平均" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><Slider x:Name="AverageSlider" Width="88" Minimum="0" Maximum="2000" TickFrequency="50" ValueChanged="OnAnalysisChanged" ToolTip="对频谱能量做时间平均；不影响响度测量"/><TextBlock x:Name="AverageLabel" Width="48" VerticalAlignment="Center" FontFamily="Cascadia Mono" FontSize="10"/>
-      <TextBlock Text="衰减" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><Slider x:Name="ReleaseSlider" Width="88" Minimum="0" Maximum="1500" ValueChanged="OnAnalysisChanged" ToolTip="频谱下降的时间常数；上升速度在显示选项中设置。设为 0 时即时响应"/><TextBlock x:Name="ReleaseLabel" Width="48" VerticalAlignment="Center" FontFamily="Cascadia Mono" FontSize="10"/>
-      <CheckBox x:Name="AverageCheck" Content="平均线" Checked="OnDisplayChanged" Unchecked="OnDisplayChanged"/><CheckBox x:Name="PeaksCheck" Content="峰值线" Checked="OnDisplayChanged" Unchecked="OnDisplayChanged"/>
-      <Button Content="清除峰值" Click="OnClearPeaks" Padding="9,5"/>
-      <TextBlock Text="历史" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="8,0,0,0"/><ComboBox x:Name="HistoryCombo" Width="67" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="10 s"/><ComboBoxItem Content="30 s"/><ComboBoxItem Content="60 s"/></ComboBox>
-      <ComboBox x:Name="HistoryModeCombo" Width="120" SelectionChanged="OnHistoryMode"><ComboBoxItem Content="二维声谱"/><ComboBoxItem Content="三维瀑布"/></ComboBox>
-      <ComboBox x:Name="SecondaryInstrumentCombo" Width="130" Margin="12,0,0,0" SelectionChanged="OnSecondaryInstrument"><ComboBoxItem Content="立体声场"/><ComboBoxItem Content="分频段声场"/><ComboBoxItem Content="波形示波器"/></ComboBox>
+      <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="布局" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="PresetCombo" Width="108" SelectionChanged="OnPreset"><ComboBoxItem Content="日常观察"/><ComboBoxItem Content="频谱研究"/><ComboBoxItem Content="立体声检查"/></ComboBox></StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="频谱" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="SpectrumModeCombo" Width="116" SelectionChanged="OnSpectrumMode"><ComboBoxItem Content="FFT 频谱"/><ComboBoxItem Content="1/3 倍频程"/></ComboBox></StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="声谱" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="HistoryModeCombo" Width="110" SelectionChanged="OnHistoryMode"><ComboBoxItem Content="二维声谱"/><ComboBoxItem Content="三维瀑布"/></ComboBox></StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="辅助" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="SecondaryInstrumentCombo" Width="120" SelectionChanged="OnSecondaryInstrument"><ComboBoxItem Content="立体声场"/><ComboBoxItem Content="分频段声场"/><ComboBoxItem Content="波形示波器"/></ComboBox></StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="配色" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="PaletteCombo" Width="108" SelectionChanged="OnPaletteChanged" AutomationProperties.Name="仪表配色"><ComboBoxItem Content="经典蓝"/><ComboBoxItem Content="柔和多彩"/><ComboBoxItem Content="标准多彩"/></ComboBox></StackPanel>
+      <ToggleButton x:Name="AnalysisToggle" Content="分析参数" Style="{StaticResource SettingsToggle}" IsChecked="{Binding IsExpanded, ElementName=AdvancedExpander, Mode=TwoWay}"/>
+      <ToggleButton x:Name="DisplayToggle" Content="显示设置" Style="{StaticResource SettingsToggle}" IsChecked="{Binding IsExpanded, ElementName=DisplayExpander, Mode=TwoWay}"/>
      </WrapPanel>
-     <Expander Header="分析参数" x:Name="AdvancedExpander" Margin="4,4,0,0">
+     <WrapPanel x:Name="PaletteLegend" Visibility="Collapsed" Margin="5,5,0,2"/>
+     <Expander x:Name="AdvancedExpander" Style="{StaticResource SettingsDetails}" Expanded="OnSettingsExpanded">
       <StackPanel>
+       <WrapPanel Margin="0,7,0,4">
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="声道" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="ChannelCombo" Width="97" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="Stereo"/><ComboBoxItem Content="Left"/><ComboBoxItem Content="Right"/><ComboBoxItem Content="Mid"/><ComboBoxItem Content="Side"/></ComboBox></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="平均" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><Slider x:Name="AverageSlider" Width="88" Minimum="0" Maximum="2000" TickFrequency="50" ValueChanged="OnAnalysisChanged" ToolTip="对频谱能量做时间平均；不影响响度测量"/><TextBlock x:Name="AverageLabel" Width="48" VerticalAlignment="Center" FontFamily="Cascadia Mono" FontSize="10"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="衰减" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><Slider x:Name="ReleaseSlider" Width="88" Minimum="0" Maximum="1500" ValueChanged="OnAnalysisChanged" ToolTip="频谱下降的时间常数；上升速度在显示设置中设置。设为 0 时即时响应"/><TextBlock x:Name="ReleaseLabel" Width="48" VerticalAlignment="Center" FontFamily="Cascadia Mono" FontSize="10"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><CheckBox x:Name="AverageCheck" Content="平均线" Checked="OnDisplayChanged" Unchecked="OnDisplayChanged"/><CheckBox x:Name="PeaksCheck" Content="峰值线" Checked="OnDisplayChanged" Unchecked="OnDisplayChanged"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><Button Content="清除峰值" Click="OnClearPeaks" Padding="9,5"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="历史" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="8,0,0,0"/><ComboBox x:Name="HistoryCombo" Width="67" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="10 s"/><ComboBoxItem Content="30 s"/><ComboBoxItem Content="60 s"/></ComboBox></StackPanel>
+       </WrapPanel>
        <WrapPanel Margin="0,5,0,0">
-        <TextBlock Text="FFT" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="5,0,0,0"/><ComboBox x:Name="FftCombo" Width="85" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="2048"/><ComboBoxItem Content="4096"/><ComboBoxItem Content="8192"/><ComboBoxItem Content="16384"/><ComboBoxItem Content="32768"/><ComboBoxItem Content="65536"/></ComboBox>
-        <ComboBox x:Name="WindowCombo" Width="130" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="Hann"/><ComboBoxItem Content="Blackman-Harris"/><ComboBoxItem Content="Flat Top"/></ComboBox>
-        <TextBlock Text="频率平滑" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><ComboBox x:Name="SmoothCombo" Width="92" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="关闭"/><ComboBoxItem Content="1/24 oct"/><ComboBoxItem Content="1/12 oct"/><ComboBoxItem Content="1/6 oct"/><ComboBoxItem Content="1/3 oct"/></ComboBox>
-        <TextBlock Text="显示斜率" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><Slider x:Name="TiltSlider" Width="85" Minimum="-6" Maximum="6" TickFrequency="0.5" IsSnapToTickEnabled="True" ValueChanged="OnAnalysisChanged" ToolTip="以 1 kHz 为基准修饰图形；不改变音频或测量数据"/><TextBlock x:Name="TiltLabel" Width="80" VerticalAlignment="Center" FontSize="10"/>
-        <TextBlock Text="声谱范围" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="8,0,0,0"/><Slider x:Name="RangeSlider" Width="90" Minimum="30" Maximum="120" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="OnAnalysisChanged"/><TextBlock x:Name="RangeLabel" Width="50" VerticalAlignment="Center" FontSize="10"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="FFT" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="5,0,0,0"/><ComboBox x:Name="FftCombo" Width="85" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="2048"/><ComboBoxItem Content="4096"/><ComboBoxItem Content="8192"/><ComboBoxItem Content="16384"/><ComboBoxItem Content="32768"/><ComboBoxItem Content="65536"/></ComboBox></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><ComboBox x:Name="WindowCombo" Width="130" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="Hann"/><ComboBoxItem Content="Blackman-Harris"/><ComboBoxItem Content="Flat Top"/></ComboBox></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="频率平滑" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><ComboBox x:Name="SmoothCombo" Width="92" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="关闭"/><ComboBoxItem Content="1/24 oct"/><ComboBoxItem Content="1/12 oct"/><ComboBoxItem Content="1/6 oct"/><ComboBoxItem Content="1/3 oct"/></ComboBox></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="显示斜率" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><Slider x:Name="TiltSlider" Width="85" Minimum="-6" Maximum="6" TickFrequency="0.5" IsSnapToTickEnabled="True" ValueChanged="OnAnalysisChanged" ToolTip="以 1 kHz 为基准修饰图形；不改变音频或测量数据"/><TextBlock x:Name="TiltLabel" Width="80" VerticalAlignment="Center" FontSize="10"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="声谱范围" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="8,0,0,0"/><Slider x:Name="RangeSlider" Width="90" Minimum="30" Maximum="120" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="OnAnalysisChanged"/><TextBlock x:Name="RangeLabel" Width="50" VerticalAlignment="Center" FontSize="10"/></StackPanel>
        </WrapPanel>
        <WrapPanel Margin="0,3,0,3">
-        <TextBlock Text="频率 Hz" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="5,0,0,0"/><TextBox x:Name="MinFrequencyBox" Width="62" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/><TextBlock Text="—" VerticalAlignment="Center"/><TextBox x:Name="MaxFrequencyBox" Width="70" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/>
-        <TextBlock Text="电平 dBFS" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="15,0,0,0"/><TextBox x:Name="FloorBox" Width="58" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/><TextBlock Text="—" VerticalAlignment="Center"/><TextBox x:Name="CeilingBox" Width="58" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/>
-        <TextBlock x:Name="ResolutionLabel" VerticalAlignment="Center" Foreground="#E0E0E0" Margin="20,0,0,0" FontFamily="Cascadia Mono" FontSize="11"/>
-        <Button Content="恢复默认参数" Click="OnResetSettings" Padding="9,4" Margin="20,0,0,0"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="频率 Hz" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="5,0,0,0"/><TextBox x:Name="MinFrequencyBox" Width="62" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/><TextBlock Text="—" VerticalAlignment="Center"/><TextBox x:Name="MaxFrequencyBox" Width="70" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="电平 dBFS" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="15,0,0,0"/><TextBox x:Name="FloorBox" Width="58" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/><TextBlock Text="—" VerticalAlignment="Center"/><TextBox x:Name="CeilingBox" Width="58" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock x:Name="ResolutionLabel" VerticalAlignment="Center" Foreground="#E0E0E0" Margin="20,0,0,0" FontFamily="Cascadia Mono" FontSize="11"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><Button Content="恢复默认参数" Click="OnResetSettings" Padding="9,4" Margin="20,0,0,0"/></StackPanel>
        </WrapPanel>
       </StackPanel>
      </Expander>
-     <Expander Header="显示选项" x:Name="DisplayExpander" Margin="4,2,0,0">
+     <Expander x:Name="DisplayExpander" Style="{StaticResource SettingsDetails}" Expanded="OnSettingsExpanded">
       <WrapPanel Margin="0,5,0,5">
-       <ComboBox x:Name="ResponsePresetCombo" Width="100" SelectionChanged="OnResponsePreset"><ComboBoxItem Content="当前默认"/><ComboBoxItem Content="平稳"/><ComboBoxItem Content="灵敏"/><ComboBoxItem Content="自定义"/></ComboBox>
-       <TextBlock Text="频谱上升" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#A0A0A0"/><Slider x:Name="AttackSlider" Width="90" Minimum="0" Maximum="150" ValueChanged="OnDisplayResponseChanged"/><TextBlock x:Name="AttackLabel" Width="48" VerticalAlignment="Center" FontSize="10"/>
-       <TextBlock Text="声场灵敏度" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#A0A0A0"/><Slider x:Name="SensitivitySlider" Width="90" Minimum="0.25" Maximum="2" ValueChanged="OnDisplayResponseChanged"/><TextBlock x:Name="SensitivityLabel" Width="42" VerticalAlignment="Center" FontSize="10"/>
-       <TextBlock Text="声场余辉" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#A0A0A0"/><Slider x:Name="TrailSlider" Width="90" Minimum="0" Maximum="250" ValueChanged="OnDisplayResponseChanged"/><TextBlock x:Name="TrailLabel" Width="48" VerticalAlignment="Center" FontSize="10"/>
-       <TextBlock Text="波形窗口" VerticalAlignment="Center" Margin="12,0,5,0" Foreground="#A0A0A0"/><ComboBox x:Name="WaveformWindowCombo" Width="75" SelectionChanged="OnDisplayResponseChanged"><ComboBoxItem Content="5 ms"/><ComboBoxItem Content="10 ms"/><ComboBoxItem Content="20 ms"/><ComboBoxItem Content="30 ms"/></ComboBox>
-       <TextBlock Text="三维时间窗" VerticalAlignment="Center" Margin="12,0,5,0" Foreground="#A0A0A0"/><ComboBox x:Name="WaterfallWindowCombo" Width="65" SelectionChanged="OnDisplayResponseChanged"><ComboBoxItem Content="4 s"/><ComboBoxItem Content="8 s"/><ComboBoxItem Content="16 s"/></ComboBox>
-       <Button x:Name="ResetWaterfallViewButton" Content="复位三维视角" Click="OnResetWaterfallView" Padding="8,4" Margin="8,0,0,0"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><ComboBox x:Name="ResponsePresetCombo" Width="100" SelectionChanged="OnResponsePreset"><ComboBoxItem Content="当前默认"/><ComboBoxItem Content="平稳"/><ComboBoxItem Content="灵敏"/><ComboBoxItem Content="自定义"/></ComboBox></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="频谱上升" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#A0A0A0"/><Slider x:Name="AttackSlider" Width="90" Minimum="0" Maximum="150" ValueChanged="OnDisplayResponseChanged"/><TextBlock x:Name="AttackLabel" Width="48" VerticalAlignment="Center" FontSize="10"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="声场灵敏度" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#A0A0A0"/><Slider x:Name="SensitivitySlider" Width="90" Minimum="0.25" Maximum="2" ValueChanged="OnDisplayResponseChanged"/><TextBlock x:Name="SensitivityLabel" Width="42" VerticalAlignment="Center" FontSize="10"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="声场余辉" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#A0A0A0"/><Slider x:Name="TrailSlider" Width="90" Minimum="0" Maximum="250" ValueChanged="OnDisplayResponseChanged"/><TextBlock x:Name="TrailLabel" Width="48" VerticalAlignment="Center" FontSize="10"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="波形窗口" VerticalAlignment="Center" Margin="12,0,5,0" Foreground="#A0A0A0"/><ComboBox x:Name="WaveformWindowCombo" Width="75" SelectionChanged="OnDisplayResponseChanged"><ComboBoxItem Content="5 ms"/><ComboBoxItem Content="10 ms"/><ComboBoxItem Content="20 ms"/><ComboBoxItem Content="30 ms"/></ComboBox></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="三维时间窗" VerticalAlignment="Center" Margin="12,0,5,0" Foreground="#A0A0A0"/><ComboBox x:Name="WaterfallWindowCombo" Width="65" SelectionChanged="OnDisplayResponseChanged"><ComboBoxItem Content="4 s"/><ComboBoxItem Content="8 s"/><ComboBoxItem Content="16 s"/></ComboBox></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><Button x:Name="ResetWaterfallViewButton" Content="复位三维视角" Click="OnResetWaterfallView" Padding="8,4" Margin="8,0,0,0"/></StackPanel>
       </WrapPanel>
      </Expander>
     </StackPanel>
@@ -107,6 +110,6 @@
     <views:OverviewView x:Name="Overview" Height="68"/>
    </StackPanel>
   </Border>
-  <Grid Grid.Row="4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="StatusLabel" Text="就绪" VerticalAlignment="Center" Foreground="#858585" FontSize="10" TextTrimming="CharacterEllipsis"/><TextBlock x:Name="PerformanceLabel" Grid.Column="1" Text="1 频谱 · 2 声谱 · 3 声场/波形 · F 冻结 · Tab 专注" VerticalAlignment="Center" Foreground="#797979" FontSize="10"/><Button Grid.Column="2" Content="快捷键 F1" Click="OnHelp" Padding="8,2" FontSize="10" Margin="10,3,0,3"/></Grid>
+  <Grid Grid.Row="4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="StatusLabel" Text="就绪" VerticalAlignment="Center" Foreground="#858585" FontSize="10" TextTrimming="CharacterEllipsis"/><TextBlock x:Name="PerformanceLabel" Grid.Column="1" Text="" VerticalAlignment="Center" Foreground="#797979" FontSize="10"/><Button Grid.Column="2" Content="快捷键 F1" Click="OnHelp" Padding="8,2" FontSize="10" Margin="10,3,0,3"/></Grid>
  </Grid>
 </Window>

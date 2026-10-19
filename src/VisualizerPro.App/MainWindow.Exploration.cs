@@ -121,6 +121,7 @@ public partial class MainWindow
             AttackSlider.Value = value.SpectrumAttackMs; SensitivitySlider.Value = value.StereoSensitivity; TrailSlider.Value = value.StereoTrailMs;
             WaveformWindowCombo.SelectedIndex = value.WaveformMs <= 5 ? 0 : value.WaveformMs <= 10 ? 1 : value.WaveformMs <= 20 ? 2 : 3;
             WaterfallWindowCombo.SelectedIndex = Array.IndexOf(new[] { 4, 8, 16 }, value.WaterfallSeconds);
+            PaletteCombo.SelectedIndex = value.FrequencyColors ? value.FrequencyPalette == FrequencyPaletteKind.Standard ? 2 : 1 : 0;
         }
         finally { updatingDisplayControls = false; }
         ApplyDisplaySettings(value);
@@ -128,8 +129,13 @@ public partial class MainWindow
 
     private void ApplyDisplaySettings(DisplaySettings value)
     {
-        value = value.Sanitize(); saved.Display = value; engine.ConfigureDisplay(value);
+        value = value.Sanitize();
+        bool paletteChanged = saved.Display.FrequencyColors != value.FrequencyColors || saved.Display.FrequencyPalette != value.FrequencyPalette;
+        saved.Display = value; engine.ConfigureDisplay(value);
         foreach (var panel in panels) panel.Display = value;
+        PaletteLegend.Visibility = value.FrequencyColors ? Visibility.Visible : Visibility.Collapsed;
+        if (paletteChanged || PaletteLegend.Children.Count == 0) UpdatePaletteLegend(value);
+        if (paletteChanged) RebuildSpectrogram();
         AttackLabel.Text = $"{value.SpectrumAttackMs:0}ms";
         SensitivityLabel.Text = $"{value.StereoSensitivity:0.00}×";
         TrailLabel.Text = $"{value.StereoTrailMs:0}ms";
@@ -145,6 +151,31 @@ public partial class MainWindow
     {
         if (!ready || updatingDisplayControls) return;
         ApplyDisplaySettings(saved.Display with { SpectrumAttackMs = AttackSlider.Value, StereoSensitivity = SensitivitySlider.Value, StereoTrailMs = TrailSlider.Value, WaveformMs = new[] { 5.0, 10, 20, 30 }[Math.Max(0, WaveformWindowCombo.SelectedIndex)], WaterfallSeconds = new[] { 4, 8, 16 }[Math.Max(0, WaterfallWindowCombo.SelectedIndex)] });
+    }
+
+    private void OnPaletteChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ready || updatingDisplayControls) return;
+        ApplyDisplaySettings(saved.Display with { FrequencyColors = PaletteCombo.SelectedIndex > 0, FrequencyPalette = PaletteCombo.SelectedIndex == 2 ? FrequencyPaletteKind.Standard : FrequencyPaletteKind.Soft });
+    }
+
+    private void UpdatePaletteLegend(DisplaySettings value)
+    {
+        PaletteLegend.Children.Clear();
+        PaletteLegend.Children.Add(new TextBlock { Text = "频段 Hz", Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(150, 150, 150)), FontSize = 10, Margin = new(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center });
+        var colors = FrequencyPalette.GetColors(value.FrequencyPalette);
+        for (int i = 0; i < colors.Length; i++)
+        {
+            var color = colors[i];
+            PaletteLegend.Children.Add(new TextBlock { Text = "●  " + FrequencyPalette.Labels[i].Replace(" Hz", ""), Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(color.Red, color.Green, color.Blue)), FontSize = 10, Margin = new(0, 0, 18, 0) });
+        }
+    }
+
+    private void OnSettingsExpanded(object sender, RoutedEventArgs e)
+    {
+        if (AdvancedExpander == null || DisplayExpander == null) return;
+        if (ReferenceEquals(sender, AdvancedExpander)) DisplayExpander.IsExpanded = false;
+        else AdvancedExpander.IsExpanded = false;
     }
 
     private void OnResponsePreset(object sender, SelectionChangedEventArgs e)

@@ -47,7 +47,8 @@ public sealed partial class InstrumentView
             float gap = Math.Min(2, (right - left) * .09f);
             float y = Y(band.LevelDbfs + Settings.TiltDbPerOctave * Math.Log2(band.CenterHz / 1000));
             bool resolved = band.HighHz - band.LowHz >= 2.0 * frame.SampleRate / frame.Settings.FftSize;
-            using var fill = new SKPaint { Color = Accent.WithAlpha((byte)(resolved ? 185 : 95)), IsAntialias = true };
+            var color = Display.FrequencyColors ? FrequencyPalette.At(band.CenterHz, Display.FrequencyPalette) : Accent;
+            using var fill = new SKPaint { Color = color.WithAlpha((byte)(resolved ? 195 : 100)), IsAntialias = true };
             c.DrawRect(new SKRect(left + gap, y, Math.Max(left + gap, right - gap), plot.Bottom), fill);
             if (ShowAverage) Line(c, left + gap, Y(band.AverageDbfs + Settings.TiltDbPerOctave * Math.Log2(band.CenterHz / 1000)), right - gap, Y(band.AverageDbfs + Settings.TiltDbPerOctave * Math.Log2(band.CenterHz / 1000)), Reference, 1.3f);
             if (ShowPeaks) Line(c, left + gap, Y(band.PeakDbfs + Settings.TiltDbPerOctave * Math.Log2(band.CenterHz / 1000)), right - gap, Y(band.PeakDbfs + Settings.TiltDbPerOctave * Math.Log2(band.CenterHz / 1000)), Ink.WithAlpha(150), 1);
@@ -60,6 +61,6 @@ public sealed partial class InstrumentView
         }
         c.Restore();
         Text(c, Snapshots.Any(s => s.OctaveBands.Length == 0) ? "频带 RMS · 旧快照无倍频程数据" : "频带 RMS · 淡色柱：FFT 分辨率不足", 49, h - 15, 10, Muted, false);
-        Text(c, "Hz", w - 23, h - 15, 10, Muted, true, true);
+        DrawFrequencyLegend(c, w, h);
     }
 }

@@ -20,7 +20,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
     private AnalysisSettings settings = new();
     public AnalysisSettings Settings { get => settings; set { settings = value; probe.InvalidateVisual(); } }
     private DisplaySettings display = new();
-    public DisplaySettings Display { get => display; set { display = value.Sanitize(); stereoDisplay.Settings = display; } }
+    public DisplaySettings Display { get => display; set { display = value.Sanitize(); stereoDisplay.Settings = display; probe.InvalidateVisual(); } }
     private StereoDisplayMode secondaryMode;
     public StereoDisplayMode SecondaryMode { get => secondaryMode; set { secondaryMode = value; UpdateHeaderActions(); } }
     public Func<double, AnalysisFrame?>? HistoryFrameAtAge { get; set; }
@@ -69,7 +69,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
     public event Action<InstrumentKind>? ExpandRequested;
     private readonly SKTypeface mono = SKTypeface.FromFamilyName("Cascadia Mono") ?? SKTypeface.Default;
     private readonly SKTypeface ui = SKTypeface.FromFamilyName("Microsoft YaHei UI") ?? SKTypeface.Default;
-    private static readonly SKColor Ink = SKColor.Parse("#DDDDDD"), Muted = SKColor.Parse("#858585"), Grid = SKColor.Parse("#292929"), Accent = SKColor.Parse("#7DA7E7"), Reference = SKColor.Parse("#AAAAAA"), Alert = SKColor.Parse("#FFFFFF");
+    private static readonly SKColor Ink = SKColor.Parse("#DDDDDD"), Muted = SKColor.Parse("#969696"), Grid = SKColor.Parse("#252525"), Accent = SKColor.Parse("#7DA7E7"), Reference = SKColor.Parse("#AAAAAA"), Alert = SKColor.Parse("#FFFFFF");
     private static readonly SKColor[] HeatStops = [new(17, 17, 17), new(20, 27, 38), new(28, 47, 75), new(50, 87, 136), new(91, 143, 212), new(188, 215, 249)];
     private static readonly SKColor[] SnapshotColors = [SKColor.Parse("#D0D0D0"), SKColor.Parse("#A7BFE3"), SKColor.Parse("#999999"), SKColor.Parse("#657DA0")];
     private static readonly float[][] SnapshotDashes = [[7, 3], [2, 3], [10, 3, 2, 3], [14, 4]];
@@ -147,7 +147,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
         for (int i = 0; i < row.Length; i++)
         {
             double db = frame.Spectrum[i] + Settings.TiltDbPerOctave * Math.Log2(frame.Frequencies[i] / 1000);
-            row[i] = (uint)Heat((db - Settings.CeilingDb + Settings.SpectrogramRange) / Settings.SpectrogramRange);
+            row[i] = (uint)FrequencyPalette.Heat((db - Settings.CeilingDb + Settings.SpectrogramRange) / Settings.SpectrogramRange, frame.Frequencies[i], Display.FrequencyColors, Display.FrequencyPalette);
         }
         // Audio callbacks can deliver one FFT every 30–60 ms. Hold a nearby
         // sample over one missing 50 ms slot; a longer interruption stays blank.
@@ -177,8 +177,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
         using var card = new SKRoundRect(new SKRect(0, 0, w, h), 16, 16);
         using var surface = new SKPaint { Color = SKColor.Parse("#171717"), IsAntialias = true };
         c.DrawRoundRect(card, surface); c.ClipRoundRect(card, antialias: true);
-        Text(c, Kind switch { InstrumentKind.Spectrum => SpectrumMode == SpectrumDisplayMode.ThirdOctave ? "01 / THIRD OCTAVE" : "01 / SPECTRUM", InstrumentKind.Spectrogram => IsWaterfall ? "02 / WATERFALL" : "02 / SPECTROGRAM", InstrumentKind.Stereo => SecondaryMode switch { StereoDisplayMode.Waveform => "03 / WAVEFORM", StereoDisplayMode.Bands => "03 / STEREO BANDS", _ => "03 / STEREO FIELD" }, _ => "04 / LEVEL & LOUDNESS" }, 20, 24, 10, Muted);
-        Text(c, Kind switch { InstrumentKind.Spectrum => SpectrumMode == SpectrumDisplayMode.ThirdOctave ? "1/3 倍频程" : "频谱分析", InstrumentKind.Spectrogram => IsWaterfall ? "三维瀑布" : "时间 · 频率", InstrumentKind.Stereo => SecondaryMode switch { StereoDisplayMode.Waveform => "波形示波器", StereoDisplayMode.Bands => "分频段声场", _ => "立体声场" }, _ => "电平与响度" }, 20, 48, 16, Ink, false);
+        Text(c, Kind switch { InstrumentKind.Spectrum => SpectrumMode == SpectrumDisplayMode.ThirdOctave ? "1/3 倍频程" : "频谱分析", InstrumentKind.Spectrogram => IsWaterfall ? "三维瀑布" : "时间声谱", InstrumentKind.Stereo => SecondaryMode switch { StereoDisplayMode.Waveform => "波形示波器", StereoDisplayMode.Bands => "分频段声场", _ => "立体声场" }, _ => "电平与响度" }, 20, 28, 15, Ink, false);
         string detail = Kind switch
         {
             InstrumentKind.Spectrum => SpectrumMode == SpectrumDisplayMode.ThirdOctave ? $"dBFS RMS / {Settings.Channel.ToString().ToUpperInvariant()}" : $"{Settings.FftSize:N0} FFT  /  {Settings.Window}  /  {Settings.Channel.ToString().ToUpperInvariant()}",
@@ -186,7 +185,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
             InstrumentKind.Stereo => SecondaryMode switch { StereoDisplayMode.Waveform => $"{Display.WaveformMs:0} ms / ±1 FS", StereoDisplayMode.Bands => "CORR / S ENERGY", _ => "M / S  ·  L / R" },
             _ => "dBFS / LUFS"
         };
-        Text(c, detail, w - 18, 25, 10, Muted, true, true);
+        Text(c, detail, 20, 47, 9, Muted);
         Line(c, 18, 61, w - 18, 61, Grid);
         if (w < 180 || h < 150) return;
         switch (Kind)
@@ -251,7 +250,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
         if (Frame is { } f)
         {
             c.Save(); c.ClipRect(plot);
-            Trace(c, f.Frequencies, f.Spectrum, Accent, 1.65f, true);
+            Trace(c, f.Frequencies, f.Spectrum, Accent, 1.65f, true, frequencyColors: Display.FrequencyColors);
             if (Settings.Channel == ChannelView.Stereo) { Trace(c, f.Frequencies, f.Left, Accent.WithAlpha(85), .7f); Trace(c, f.Frequencies, f.Right, SKColor.Parse("#A7BFE3").WithAlpha(110), .7f); }
             if (ShowAverage) Trace(c, f.Frequencies, f.Average, SKColor.Parse("#C8C8C8").WithAlpha(150), 1.2f);
             if (ShowPeaks) Trace(c, f.Frequencies, f.Peaks, Reference.WithAlpha(155), .9f);
@@ -272,7 +271,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
             Text(c, readout, 49, h - 15, 11, Muted, false);
         }
         else Empty(c, "等待音频信号", plot);
-        Text(c, "Hz", w - 23, h - 15, 10, Muted, true, true);
+        DrawFrequencyLegend(c, w, h);
     }
     public static int Nearest(double[] frequencies, double f)
     {
@@ -291,7 +290,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
         double fraction = Math.Log(frequency / frame.Frequencies[lower]) / Math.Log(frame.Frequencies[upper] / frame.Frequencies[lower]);
         return frame.Spectrum[lower] + (frame.Spectrum[upper] - frame.Spectrum[lower]) * fraction;
     }
-    private void Trace(SKCanvas c, double[] frequencies, float[] values, SKColor color, float width, bool fill = false, float[]? dashes = null)
+    private void Trace(SKCanvas c, double[] frequencies, float[] values, SKColor color, float width, bool fill = false, float[]? dashes = null, bool frequencyColors = false)
     {
         using var path = new SKPath(); bool first = true; float start = 0, end = 0;
         for (int i = 0; i < values.Length; i++)
@@ -303,10 +302,12 @@ public sealed partial class InstrumentView : Grid, IDisposable
         if (fill && !first)
         {
             using var area = new SKPath(path); area.LineTo(end, plot.Bottom); area.LineTo(start, plot.Bottom); area.Close();
-            using var p = new SKPaint { Color = color.WithAlpha(19), IsAntialias = true }; c.DrawPath(area, p);
+            using var fillShader = frequencyColors ? FrequencyPalette.Shader(plot.Left, plot.Right, MinFrequency, MaxFrequency, 24, Display.FrequencyPalette) : null;
+            using var p = new SKPaint { Color = frequencyColors ? SKColors.White : color.WithAlpha(19), Shader = fillShader, IsAntialias = true }; c.DrawPath(area, p);
         }
         using var dash = dashes == null ? null : SKPathEffect.CreateDash(dashes, 0);
-        using var stroke = new SKPaint { Color = color, Style = SKPaintStyle.Stroke, StrokeWidth = width, IsAntialias = true, PathEffect = dash }; c.DrawPath(path, stroke);
+        using var shader = frequencyColors ? FrequencyPalette.Shader(plot.Left, plot.Right, MinFrequency, MaxFrequency, style: Display.FrequencyPalette) : null;
+        using var stroke = new SKPaint { Color = color, Shader = shader, Style = SKPaintStyle.Stroke, StrokeWidth = width, IsAntialias = true, PathEffect = dash }; c.DrawPath(path, stroke);
     }
     private void DrawSpectrogram(SKCanvas c, float w, float h)
     {
@@ -387,7 +388,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
         float top = 84, bottom = h - 54, barHeight = Math.Max(30, bottom - top), barX = 34;
         using var bg = new SKPaint { Color = SKColor.Parse("#2A2A2A") };
         c.DrawRect(barX, top, 16, barHeight, bg); c.DrawRect(barX + 27, top, 16, barHeight, bg);
-        for (int db = 0; db >= -60; db -= 12)
+        for (int db = 0; db >= -60; db -= barHeight < 100 ? 20 : 12)
         {
             float y = bottom - (db + 60) / 60f * barHeight;
             Line(c, barX - 4, y, barX + 48, y, Grid); Text(c, $"{db}", barX + 55, y + 3, 9, Muted);
@@ -409,7 +410,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
         {
             if (barHeight < 205)
             {
-                float compactY = top + 10 + i * Math.Max(13, (barHeight - 15) / 5);
+                float compactY = top + 4 + i * Math.Max(11, (barHeight - 8) / 5);
                 Text(c, names[i], tx, compactY, 9, Muted, false);
                 Text(c, values[i], right, compactY, 12, i == 2 ? Accent : Ink, true, true);
                 continue;

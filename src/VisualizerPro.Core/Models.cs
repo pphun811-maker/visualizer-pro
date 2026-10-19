@@ -2,9 +2,12 @@ namespace VisualizerPro.Core;
 
 public enum ChannelView { Stereo, Left, Right, Mid, Side }
 public enum WindowKind { Hann, BlackmanHarris, FlatTop }
+public enum FrequencyPaletteKind { Soft, Standard }
 
 public sealed record DisplaySettings
 {
+    public bool FrequencyColors { get; init; }
+    public FrequencyPaletteKind FrequencyPalette { get; init; }
     public double SpectrumAttackMs { get; init; } = 35;
     public double StereoSensitivity { get; init; } = 1;
     public double StereoTrailMs { get; init; } = 100;
@@ -15,6 +18,7 @@ public sealed record DisplaySettings
 
     public DisplaySettings Sanitize() => this with
     {
+        FrequencyPalette = Enum.IsDefined(FrequencyPalette) ? FrequencyPalette : FrequencyPaletteKind.Soft,
         SpectrumAttackMs = Math.Clamp(double.IsFinite(SpectrumAttackMs) ? SpectrumAttackMs : 35, 0, 150),
         StereoSensitivity = Math.Clamp(double.IsFinite(StereoSensitivity) ? StereoSensitivity : 1, .25, 2),
         StereoTrailMs = Math.Clamp(double.IsFinite(StereoTrailMs) ? StereoTrailMs : 100, 0, 250),

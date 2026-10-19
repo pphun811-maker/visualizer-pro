@@ -63,7 +63,6 @@ public partial class MainWindow : Window
             panel.RangeChanged += SetFrequencyRange;
             panel.BandChanged += (low, high) => { Spectrum.SetBand(low, high); Spectrogram.SetBand(low, high); if (frozen) Redraw(); };
             panel.ExpandRequested += ExpandInstrument;
-            panel.ModeCycleRequested += CyclePanelMode;
             panel.HeaderExpandRequested += ToggleExpand;
             panel.HelpRequested += ShowShortcutGuide;
         }
@@ -83,6 +82,7 @@ public partial class MainWindow : Window
         ContentRendered += (_, _) => { if (fullScreen) PositionOn(CurrentScreen()); };
         SizeChanged += (_, _) => FitPanels();
         ControlsPanel.IsVisibleChanged += (_, _) => FitPanels();
+        ControlsPanel.SizeChanged += (_, _) => FitPanels();
         FilePanel.IsVisibleChanged += (_, _) => FitPanels();
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaysChanged;
         ready = true;
@@ -201,9 +201,9 @@ public partial class MainWindow : Window
     private static string Time(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"mm\:ss", CultureInfo.InvariantCulture);
     private void FitPanels()
     {
-        double height = Math.Max(250, ((Grid)Content).ActualHeight - 114 - (ControlsPanel.IsVisible ? ControlsPanel.ActualHeight : 0) - (FilePanel.IsVisible ? FilePanel.ActualHeight + 10 : 0));
-        StereoRow.MinHeight = Math.Min(210, Math.Max(140, (height - 9) * .44));
-        RightPanels.RowDefinitions[2].MinHeight = Math.Min(260, Math.Max(150, (height - 9) * .50));
+        double height = Math.Max(250, ((Grid)Content).ActualHeight - 100 - (ControlsPanel.IsVisible ? ControlsPanel.ActualHeight : 0) - (FilePanel.IsVisible ? FilePanel.ActualHeight + 10 : 0));
+        StereoRow.MinHeight = Math.Min(210, Math.Max(110, (height - 12) * .38));
+        RightPanels.RowDefinitions[2].MinHeight = Math.Min(260, Math.Max(190, (height - 12) * .54));
         SpectrumRow.MinHeight = Math.Min(160, Math.Max(110, (height - 9) * .45));
         LeftPanels.RowDefinitions[2].MinHeight = Math.Min(150, Math.Max(100, (height - 9) * .40));
     }
@@ -493,15 +493,6 @@ public partial class MainWindow : Window
         }
         catch (Exception e) when (e is IOException or JsonException) { SettingsStore.Log(e); }
     }
-    private void OnExport(object sender, RoutedEventArgs e)
-    {
-        var menu = new ContextMenu();
-        AddMenu(menu, "导出仪表截图 PNG", () => ExportScreenshot());
-        AddMenu(menu, "导出当前频谱 CSV", ExportCsv);
-        AddMenu(menu, "导出参考快照 JSON", ExportSnapshots);
-        AddMenu(menu, "导入参考快照 JSON", ImportSnapshots);
-        menu.PlacementTarget = (UIElement)sender; menu.IsOpen = true;
-    }
     private static void AddMenu(ContextMenu menu, string label, Action action, bool? check = null)
     {
         var item = new MenuItem { Header = label, IsCheckable = check.HasValue, IsChecked = check ?? false }; item.Click += (_, _) => action(); menu.Items.Add(item);
@@ -575,6 +566,12 @@ public partial class MainWindow : Window
     private void OnMenu(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu();
+        AddMenu(menu, "保存参考快照  S", () => OnSnapshot(this, new RoutedEventArgs()));
+        AddMenu(menu, "导出仪表截图 PNG…", () => ExportScreenshot());
+        AddMenu(menu, "导出当前频谱 CSV…", ExportCsv);
+        AddMenu(menu, "导出参考快照 JSON…", ExportSnapshots);
+        AddMenu(menu, "导入参考快照 JSON…", ImportSnapshots);
+        menu.Items.Add(new Separator());
         AddMenu(menu, fullScreen ? "退出全屏  F11" : "进入全屏  F11", () => SetFullScreen(!fullScreen));
         AddMenu(menu, "窗口置顶", () => Topmost = !Topmost, Topmost);
         AddMenu(menu, "收起到托盘", Hide);
@@ -585,6 +582,7 @@ public partial class MainWindow : Window
             catch (IOException e) { Report(e); }
         });
         AddMenu(menu, "快捷键与读数说明  F1", ShowShortcutGuide);
+        if (sender is FrameworkElement owner) owner.ContextMenu = menu;
         menu.PlacementTarget = (UIElement)sender; menu.IsOpen = true;
     }
     private void OnKeyDown(object sender, KeyEventArgs e)
