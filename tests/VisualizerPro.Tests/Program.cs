@@ -335,5 +335,86 @@ Test("Third-octave silence and contiguous preferred band definitions", () =>
     if (display.WaterfallSeconds != 8) throw new Exception("Waterfall duration default");
 });
 
+Test("History spectrum resolves adjacent bass tones at a 192 kHz input rate", () =>
+{
+    const int rate = 192000;
+    var analyzer = new Analyzer(rate, new() { FftSize = 8192 }, includeSpectrogram: true);
+    AnalysisFrame? frame = null;
+    for (int block = 0; block < 24; block++)
+    {
+        var samples = new float[rate / 20 * 2];
+        for (int i = 0; i < samples.Length / 2; i++)
+        {
+            double t = (block * rate / 20 + i) / (double)rate;
+            samples[2 * i] = samples[2 * i + 1] = (float)(.25 * Math.Sin(2 * Math.PI * 56 * t) + .25 * Math.Sin(2 * Math.PI * 64 * t));
+        }
+        frame = analyzer.Add(samples);
+    }
+    var raw = frame!.Spectrogram!;
+    if (raw.Levels.Length != 2048 || raw.Levels.Any(x => !float.IsFinite(x))) throw new Exception("Invalid detailed spectrum");
+    if (raw.At(56) < -15 || raw.At(64) < -15 || raw.At(60) > -30) throw new Exception($"Bass separation: {raw.At(56):F1}/{raw.At(60):F1}/{raw.At(64):F1}");
+});
+
+Test("History has no display release tail and leaves FFT/meters unchanged", () =>
+{
+    const int rate = 48000;
+    var settings = new AnalysisSettings { FftSize = 2048, ReleaseMs = 1000, SmoothingOctaves = 1.0 / 3 };
+    var detailed = new Analyzer(rate, settings, includeSpectrogram: true); var ordinary = new Analyzer(rate, settings);
+    AnalysisFrame? frame = null, baseline = null;
+    for (int block = 0; block < 40; block++)
+    {
+        var samples = new float[2400];
+        for (int i = 0; i < 1200; i++)
+            samples[2 * i] = samples[2 * i + 1] = block < 28 ? (float)(.4 * Math.Sin(2 * Math.PI * 1500 * (block * 1200 + i) / rate)) : 0;
+        frame = detailed.Add(samples) ?? frame; baseline = ordinary.Add(samples) ?? baseline;
+    }
+    if (frame!.Spectrogram!.At(1500) > -130 || frame.Spectrum.Max() < -100) throw new Exception($"History/display release levels: {frame.Spectrogram.At(1500):F1}/{frame.Spectrum.Max():F1}");
+    if (!frame.Spectrum.SequenceEqual(baseline!.Spectrum) || frame.Meters != baseline.Meters) throw new Exception("Detailed history altered the FFT or meters");
+});
+
+Test("History decimation rejects ultrasonic aliases", () =>
+{
+    const int rate = 192000;
+    var analyzer = new Analyzer(rate, includeSpectrogram: true); AnalysisFrame? frame = null;
+    for (int block = 0; block < 20; block++)
+    {
+        var samples = new float[rate / 20 * 2];
+        for (int i = 0; i < samples.Length / 2; i++)
+            samples[2 * i] = samples[2 * i + 1] = (float)(.5 * Math.Sin(2 * Math.PI * 32000 * (block * rate / 20 + i) / rate));
+        frame = analyzer.Add(samples);
+    }
+    if (frame!.Spectrogram!.At(16000) > -65) throw new Exception($"Ultrasonic alias: {frame.Spectrogram.At(16000):F1} dBFS");
+    double peak = frame.Spectrogram.Frequencies.Select((hz, i) => (hz, Level: frame.Spectrogram.Levels[i])).Where(p => Math.Abs(p.hz - 32000) < 200).Max(p => p.Level);
+    if (peak < -10) throw new Exception($"Original ultrasonic ridge was discarded: {peak:F1}");
+});
+
+Test("History startup does not paint zero-padding as a broadband event", () =>
+{
+    foreach (int rate in new[] { 8000, 48000, 192000 })
+    {
+        var analyzer = new Analyzer(rate, includeSpectrogram: true);
+        var first = analyzer.Add(Signal(rate, .05, 125, .4))!;
+        if (first.Spectrogram!.Frequencies.Where((hz, i) => hz < 18000 && first.Spectrogram.Levels[i] > -130).Any()) throw new Exception($"Startup stripe at {rate} Hz");
+    }
+});
+
+Test("History channel selection preserves stereo antiphase and Mid cancellation", () =>
+{
+    var stereo = new Analyzer(48000, includeSpectrogram: true);
+    var mid = new Analyzer(48000, new() { Channel = ChannelView.Mid }, includeSpectrogram: true);
+    AnalysisFrame? s = null, m = null;
+    for (int block = 0; block < 20; block++)
+    {
+        var samples = new float[4800];
+        for (int i = 0; i < 2400; i++)
+        {
+            samples[2 * i] = (float)(.4 * Math.Sin(2 * Math.PI * 1500 * (block * 2400 + i) / 48000));
+            samples[2 * i + 1] = -samples[2 * i];
+        }
+        s = stereo.Add(samples); m = mid.Add(samples);
+    }
+    if (s!.Spectrogram!.At(1500) < -10 || m!.Spectrogram!.At(1500) > -130) throw new Exception("History channel cancellation");
+});
+
 Console.WriteLine($"\n{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

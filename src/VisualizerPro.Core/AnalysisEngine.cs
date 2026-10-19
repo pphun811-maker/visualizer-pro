@@ -52,7 +52,7 @@ public sealed class AnalysisEngine : IDisposable
                 if (block.Generation != Interlocked.Read(ref generation)) continue;
                 if (activeGeneration != block.Generation || rate != block.SampleRate)
                 {
-                    activeGeneration = block.Generation; rate = block.SampleRate; analyzer = new(rate, Settings); activeSettings = Settings;
+                    activeGeneration = block.Generation; rate = block.SampleRate; analyzer = new(rate, Settings, includeSpectrogram: true); activeSettings = Settings;
                 }
                 var next = Settings;
                 if (next != activeSettings) { analyzer!.Configure(next); activeSettings = next; }

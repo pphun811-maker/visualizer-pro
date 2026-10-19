@@ -11,6 +11,7 @@ public sealed class Analyzer
     private long sampleCount, sequence, lastFrameSample;
     private double energyL, energyR, cross, peakL, peakR;
     private readonly LoudnessMeter loudness;
+    private readonly SpectrogramAnalyzer? spectrogram;
     private readonly TruePeakMeter trueL = new(), trueR = new();
     private double[] window = [], realL = [], imagL = [], realR = [], imagR = [];
     private readonly double[] frequencies = new double[Bins];
@@ -24,12 +25,13 @@ public sealed class Analyzer
     public DisplaySettings Display { get; set; } = new();
     private readonly double[] bandL = new double[5], bandR = new double[5], bandCross = new double[5];
 
-    public Analyzer(int sampleRate, AnalysisSettings? settings = null)
+    public Analyzer(int sampleRate, AnalysisSettings? settings = null, bool includeSpectrogram = false)
     {
         if (sampleRate < 8000 || sampleRate > 384000) throw new ArgumentOutOfRangeException(nameof(sampleRate));
         rate = sampleRate; this.settings = (settings ?? new()).Sanitize();
         meterL = new float[(int)(rate * .4)]; meterR = new float[meterL.Length];
         loudness = new(rate);
+        if (includeSpectrogram) spectrogram = new(rate);
         for (int i = 0; i < Bins; i++) frequencies[i] = 10 * Math.Pow((rate / 2.0) / 10, i / (double)(Bins - 1));
         ConfigureFft();
     }
@@ -57,6 +59,7 @@ public sealed class Analyzer
         {
             float l = float.IsFinite(stereo[i]) ? stereo[i] : 0, r = float.IsFinite(stereo[i + 1]) ? stereo[i + 1] : 0;
             ringL[head] = l; ringR[head] = r; head = (head + 1) & 65535;
+            spectrogram?.Add(l, r);
             double oldL = meterL[meterHead], oldR = meterR[meterHead];
             energyL += (double)l * l - oldL * oldL; energyR += (double)r * r - oldR * oldR; cross += (double)l * r - oldL * oldR;
             meterL[meterHead] = l; meterR[meterHead] = r; meterHead = (meterHead + 1) % meterL.Length;
@@ -160,7 +163,7 @@ public sealed class Analyzer
             AudioMath.PowerDb(Math.Max(0, (el + er - 2 * cross) / (4 * count))),
             el + er > 1e-18 ? Math.Max(AudioMath.Db(peakL), AudioMath.Db(peakR)) - AudioMath.PowerDb((el + er) / (2 * count)) : double.NaN, sampleCount / (double)rate);
         return new(++sequence, sampleCount / (double)rate, rate, settings, frequencies, (float[])envelope.Clone(), (float[])envelopeL.Clone(), (float[])envelopeR.Clone(),
-            (float[])average.Clone(), (float[])peaks.Clone(), phaseL, phaseR, meters) { StereoBands = BuildStereoBands(dt, norm), OctaveBands = octaveReadings };
+            (float[])average.Clone(), (float[])peaks.Clone(), phaseL, phaseR, meters) { Spectrogram = spectrogram?.Read(settings.Channel, realL, imagL, realR, imagR, norm), StereoBands = BuildStereoBands(dt, norm), OctaveBands = octaveReadings };
     }
 
     private OctaveBandReading[] BuildOctaves(double averageA, double attackA, double releaseA)

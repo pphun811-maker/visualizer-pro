@@ -22,7 +22,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
     private DisplaySettings display = new();
     public DisplaySettings Display { get => display; set { display = value.Sanitize(); stereoDisplay.Settings = display; probe.InvalidateVisual(); } }
     private StereoDisplayMode secondaryMode;
-    public StereoDisplayMode SecondaryMode { get => secondaryMode; set { secondaryMode = value; UpdateHeaderActions(); } }
+    public StereoDisplayMode SecondaryMode { get => secondaryMode; set => secondaryMode = value; }
     public Func<double, AnalysisFrame?>? HistoryFrameAtAge { get; set; }
     public event Action<double, double>? ReviewRequested;
     private double? selectedHistoryAge;
@@ -53,7 +53,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
             if (Kind == InstrumentKind.Spectrum && SpectrumMode == SpectrumDisplayMode.ThirdOctave) return CursorOctaveBand?.LevelDbfs;
             if (IsWaterfall) return WaterfallCursor?.LevelDbfs;
             var reading = Kind == InstrumentKind.Spectrogram && CursorHistoryAge is { } age ? HistoryFrameAtAge?.Invoke(age) : Frame;
-            return reading == null || CursorFrequency <= 0 ? null : SampleSpectrum(reading, CursorFrequency);
+            return reading == null || CursorFrequency <= 0 ? null : Kind == InstrumentKind.Spectrogram && Display.SpectrogramIntensityColors && reading.Spectrogram is { } raw ? raw.At(CursorFrequency) : SampleSpectrum(reading, CursorFrequency);
         }
     }
     internal Point? PointerPosition { get; private set; }
@@ -74,7 +74,9 @@ public sealed partial class InstrumentView : Grid, IDisposable
     private static readonly SKColor[] SnapshotColors = [SKColor.Parse("#D0D0D0"), SKColor.Parse("#A7BFE3"), SKColor.Parse("#999999"), SKColor.Parse("#657DA0")];
     private static readonly float[][] SnapshotDashes = [[7, 3], [2, 3], [10, 3, 2, 3], [14, 4]];
     private SpectrogramRaster? history;
-    internal int HistoryRasterRows => history?.Count ?? 0;
+    private IntensitySpectrogramRaster? intensityHistory;
+    private int intensityWidth;
+    internal int HistoryRasterRows => Display.SpectrogramIntensityColors ? intensityHistory?.Count ?? 0 : history?.Count ?? 0;
     private readonly StereoDisplay stereoDisplay = new();
     private GRContext? limitedContext;
     private uint[] row = new uint[Analyzer.Bins];
@@ -131,6 +133,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
     public void ResetHistory()
     {
         history?.Dispose(); history = null; lastHistoryTime = -1; lastSequence = -1;
+        intensityHistory?.Dispose(); intensityHistory = null; intensityWidth = 0;
         ClearWaterfall();
     }
     public void AcceptHistory(AnalysisFrame frame)
@@ -143,11 +146,24 @@ public sealed partial class InstrumentView : Grid, IDisposable
         if (advance < 1) return;
         historySettings = Settings; lastRate = frame.SampleRate; lastSequence = frame.Sequence;
         historyRows = Settings.HistorySeconds * 20;
+        if (Display.SpectrogramIntensityColors)
+        {
+            var values = frame.Spectrogram?.Levels ?? frame.Spectrum;
+            if (intensityHistory == null || intensityWidth != values.Length)
+            {
+                intensityHistory?.Dispose(); intensityWidth = values.Length;
+                intensityHistory = new(intensityWidth, historyRows);
+            }
+            if (advance == 2) intensityHistory.Append(values, 1);
+            else if (advance > 2) intensityHistory.Append(Enumerable.Repeat(-140f, intensityWidth).ToArray(), advance - 1);
+            intensityHistory.Append(values, 1); lastHistoryTime += advance * .05;
+            return;
+        }
         history ??= new SpectrogramRaster(Analyzer.Bins, historyRows);
         for (int i = 0; i < row.Length; i++)
         {
-            double db = frame.Spectrum[i] + Settings.TiltDbPerOctave * Math.Log2(frame.Frequencies[i] / 1000);
-            row[i] = (uint)FrequencyPalette.Heat((db - Settings.CeilingDb + Settings.SpectrogramRange) / Settings.SpectrogramRange, frame.Frequencies[i], Display.FrequencyColors, Display.FrequencyPalette);
+            double db = frame.Spectrum[i] + (Display.SpectrogramIntensityColors ? 0 : Settings.TiltDbPerOctave * Math.Log2(frame.Frequencies[i] / 1000));
+            row[i] = (uint)FrequencyPalette.Heat((db - Settings.CeilingDb + Settings.SpectrogramRange) / Settings.SpectrogramRange, frame.Frequencies[i], Display.FrequencyColors, Display.FrequencyPalette, Display.SpectrogramIntensityColors);
         }
         // Audio callbacks can deliver one FFT every 30–60 ms. Hold a nearby
         // sample over one missing 50 ms slot; a longer interruption stays blank.
@@ -181,7 +197,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
         string detail = Kind switch
         {
             InstrumentKind.Spectrum => SpectrumMode == SpectrumDisplayMode.ThirdOctave ? $"dBFS RMS / {Settings.Channel.ToString().ToUpperInvariant()}" : $"{Settings.FftSize:N0} FFT  /  {Settings.Window}  /  {Settings.Channel.ToString().ToUpperInvariant()}",
-            InstrumentKind.Spectrogram => IsWaterfall ? $"{Math.Min(Settings.HistorySeconds, Display.WaterfallSeconds)}s / {Settings.SpectrogramRange:0} dB / 3D" : $"{Settings.HistorySeconds}s  /  {Settings.SpectrogramRange:0} dB  /  NEWEST ↑",
+            InstrumentKind.Spectrogram => IsWaterfall ? $"{Math.Min(Settings.HistorySeconds, Display.WaterfallSeconds)}s / {Settings.SpectrogramRange:0} dB / 3D" : Display.SpectrogramIntensityColors ? $"{Settings.HistorySeconds}s  /  −130–0 dBFS  /  NEWEST ↑" : $"{Settings.HistorySeconds}s  /  {Settings.SpectrogramRange:0} dB  /  NEWEST ↑",
             InstrumentKind.Stereo => SecondaryMode switch { StereoDisplayMode.Waveform => $"{Display.WaveformMs:0} ms / ±1 FS", StereoDisplayMode.Bands => "CORR / S ENERGY", _ => "M / S  ·  L / R" },
             _ => "dBFS / LUFS"
         };
@@ -234,7 +250,15 @@ public sealed partial class InstrumentView : Grid, IDisposable
         foreach (double f in ticks)
         {
             if (f < MinFrequency || f > MaxFrequency) continue;
-            float x = X(f); Line(c, x, plot.Top, x, plot.Bottom, Grid.WithAlpha(160));
+            float x = X(f);
+            if (Kind == InstrumentKind.Spectrogram && Display.SpectrogramIntensityColors)
+            {
+                var matrix = c.TotalMatrix;
+                float snapped = ((float)Math.Floor(x * matrix.ScaleX + matrix.TransX) + .5f - matrix.TransX) / matrix.ScaleX;
+                using var divider = new SKPaint { Color = new SKColor(0, 0, 0, 165), StrokeWidth = 1 / matrix.ScaleX, IsAntialias = false };
+                c.DrawLine(snapped, plot.Top, snapped, plot.Bottom, divider);
+            }
+            else Line(c, x, plot.Top, x, plot.Bottom, Grid.WithAlpha(160));
             if (labels && x - previous > 42)
             { Text(c, f >= 1000 ? $"{f / 1000:0.#}k" : $"{f:0}", x - 7, plot.Bottom + 21, 10, Muted); previous = x; }
         }
@@ -312,19 +336,31 @@ public sealed partial class InstrumentView : Grid, IDisposable
     private void DrawSpectrogram(SKCanvas c, float w, float h)
     {
         plot = new(49, 78, w - 23, h - 71);
-        if (history != null && Frame is { } f)
+        if ((history != null || intensityHistory != null) && Frame is { } f)
         {
-            float left = (float)(Math.Log(MinFrequency / 10) / Math.Log((f.SampleRate / 2.0) / 10) * (Analyzer.Bins - 1));
-            float right = (float)(Math.Log(MaxFrequency / 10) / Math.Log((f.SampleRate / 2.0) / 10) * (Analyzer.Bins - 1));
+            int bins = Display.SpectrogramIntensityColors ? intensityWidth : Analyzer.Bins;
+            float left = (float)(Math.Log(MinFrequency / 10) / Math.Log((f.SampleRate / 2.0) / 10) * (bins - 1));
+            float right = (float)(Math.Log(MaxFrequency / 10) / Math.Log((f.SampleRate / 2.0) / 10) * (bins - 1));
             // Rasterize in physical pixels, then map one output row to one
             // device row; ring-buffer wrapping no longer creates a second seam.
             var device = c.TotalMatrix.MapRect(plot);
             float top = (float)Math.Ceiling(device.Top), bottom = (float)Math.Floor(device.Bottom);
             int pixelHeight = Math.Max(1, (int)(bottom - top));
-            var image = history.Image(pixelHeight);
             float scaleY = c.TotalMatrix.ScaleY;
-            var destination = new SKRect(plot.Left, (top - c.TotalMatrix.TransY) / scaleY, plot.Right, (bottom - c.TotalMatrix.TransY) / scaleY);
-            c.DrawImage(image, new SKRect(left, 0, right, image.Height), destination, new SKSamplingOptions(SKFilterMode.Linear));
+            if (Display.SpectrogramIntensityColors && intensityHistory != null)
+            {
+                float deviceLeft = (float)Math.Ceiling(device.Left), deviceRight = (float)Math.Floor(device.Right);
+                int pixelWidth = Math.Max(1, (int)(deviceRight - deviceLeft));
+                var image = intensityHistory.Image(pixelWidth, pixelHeight, left, right);
+                var destination = new SKRect((deviceLeft - c.TotalMatrix.TransX) / c.TotalMatrix.ScaleX, (top - c.TotalMatrix.TransY) / scaleY, (deviceRight - c.TotalMatrix.TransX) / c.TotalMatrix.ScaleX, (bottom - c.TotalMatrix.TransY) / scaleY);
+                c.DrawImage(image, destination, new SKSamplingOptions(SKFilterMode.Nearest));
+            }
+            else if (history != null)
+            {
+                var image = history.Image(pixelHeight);
+                var destination = new SKRect(plot.Left, (top - c.TotalMatrix.TransY) / scaleY, plot.Right, (bottom - c.TotalMatrix.TransY) / scaleY);
+                c.DrawImage(image, new SKRect(left, 0, right, image.Height), destination, new SKSamplingOptions(SKFilterMode.Linear));
+            }
         }
         FrequencyGrid(c, true);
         for (int i = 0; i <= 3; i++) Text(c, $"-{Settings.HistorySeconds * i / 3}s", 38, plot.Top + plot.Height * i / 3 + 4, 10, Muted, true, true);
@@ -336,7 +372,7 @@ public sealed partial class InstrumentView : Grid, IDisposable
             Line(c, X(bandLow), plot.Top, X(bandLow), plot.Bottom, Accent.WithAlpha(140)); Line(c, X(bandHigh), plot.Top, X(bandHigh), plot.Bottom, Accent.WithAlpha(140));
             c.Restore();
         }
-        if (history == null) Empty(c, "等待音频信号", plot);
+        if (history == null && intensityHistory == null) Empty(c, "等待音频信号", plot);
     }
     private void Empty(SKCanvas c, string label, SKRect area)
     {
@@ -498,5 +534,5 @@ public sealed partial class InstrumentView : Grid, IDisposable
         if (max / min < 1.1) return;
         RangeChanged?.Invoke(Math.Max(10, min), Math.Min((Frame?.SampleRate ?? 48000) / 2.0, max)); e.Handled = true;
     }
-    public void Dispose() { if (disposed) return; disposed = true; ClearWaterfall(); gpu?.Dispose(); history?.Dispose(); mono.Dispose(); ui.Dispose(); }
+    public void Dispose() { if (disposed) return; disposed = true; ClearWaterfall(); gpu?.Dispose(); history?.Dispose(); intensityHistory?.Dispose(); mono.Dispose(); ui.Dispose(); }
 }

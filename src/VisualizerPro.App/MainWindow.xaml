@@ -1,9 +1,15 @@
 <Window x:Class="VisualizerPro.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:views="clr-namespace:VisualizerPro.App.Views"
- Title="Visualizer Pro — 音频观察台" Background="#0C0C0C" Foreground="#DDDDDD" FontFamily="Microsoft YaHei UI" FontSize="12" Width="1440" Height="920" MinWidth="1120" MinHeight="740" AllowDrop="True" PreviewKeyDown="OnKeyDown" Drop="OnDrop" DragOver="OnDragOver" Closing="OnClosing" SourceInitialized="OnSourceInitialized">
+ Title="Visualizer Pro" WindowStyle="None" Background="#0C0C0C" Foreground="#DDDDDD" FontFamily="Microsoft YaHei UI" FontSize="12" Width="1440" Height="920" MinWidth="1120" MinHeight="740" AllowDrop="True" PreviewKeyDown="OnKeyDown" Drop="OnDrop" DragOver="OnDragOver" Closing="OnClosing" SourceInitialized="OnSourceInitialized" StateChanged="OnWindowStateChanged">
+ <WindowChrome.WindowChrome><WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False"/></WindowChrome.WindowChrome>
+ <Window.Resources>
+  <Style x:Key="WindowControl" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Width" Value="32"/><Setter Property="Height" Value="30"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="2,0"/><Setter Property="Background" Value="#1C1C1C"/>
+  </Style>
+ </Window.Resources>
  <Window.Icon><BitmapImage UriSource="Assets/app.ico"/></Window.Icon>
  <Grid Margin="20,0,20,0">
   <Grid.RowDefinitions><RowDefinition Height="68"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="32"/></Grid.RowDefinitions>
-  <Grid Grid.Row="0">
+  <Grid Grid.Row="0" x:Name="TitleBar" Background="Transparent" MouseLeftButtonDown="OnTitleBarDown">
    <Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
    <StackPanel VerticalAlignment="Center">
     <StackPanel Orientation="Horizontal"><TextBlock Text="▥" Foreground="#E0E0E0" FontSize="18" Margin="0,-1,7,0"/><TextBlock Text="VISUALIZER" FontFamily="Bahnschrift" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="PRO" Foreground="#E0E0E0" FontFamily="Bahnschrift" FontSize="10" Margin="5,3,0,0"/></StackPanel>
@@ -17,7 +23,9 @@
     <Button x:Name="FreezeButton" Content="冻结 F" Click="OnFreeze" ToolTip="冻结显示，播放与分析继续"/>
     <Button Content="专注 Tab" Click="OnFocus"/>
     <Button x:Name="MoreButton" Content="更多" Click="OnMenu" ToolTip="快照、导出、窗口与帮助"/>
-    <Button Content="−" Click="OnMinimize" ToolTip="最小化"/><Button Content="×" Click="OnExit" ToolTip="退出"/>
+    <Button x:Name="MinimizeButton" Style="{StaticResource WindowControl}" Click="OnMinimize" ToolTip="最小化" AutomationProperties.Name="最小化"><Path Data="M 1,6 L 11,6" Stroke="#BDBDBD" StrokeThickness="1.2"/></Button>
+    <Button x:Name="MaximizeButton" Style="{StaticResource WindowControl}" Click="OnMaximize" ToolTip="最大化 / 还原" AutomationProperties.Name="最大化或还原"><Path x:Name="MaximizeIcon" Data="M 1,1 L 11,1 11,11 1,11 Z" Stroke="#BDBDBD" StrokeThickness="1.2"/></Button>
+    <Button x:Name="CloseButton" Style="{StaticResource WindowControl}" Click="OnExit" ToolTip="关闭" AutomationProperties.Name="关闭"><Path Data="M 1,1 L 11,11 M 11,1 L 1,11" Stroke="#BDBDBD" StrokeThickness="1.2"/></Button>
    </StackPanel>
   </Grid>
   <StackPanel Grid.Row="1" x:Name="ControlsPanel">
@@ -29,10 +37,10 @@
       <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="声谱" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="HistoryModeCombo" Width="110" SelectionChanged="OnHistoryMode"><ComboBoxItem Content="二维声谱"/><ComboBoxItem Content="三维瀑布"/></ComboBox></StackPanel>
       <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="辅助" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="SecondaryInstrumentCombo" Width="120" SelectionChanged="OnSecondaryInstrument"><ComboBoxItem Content="立体声场"/><ComboBoxItem Content="分频段声场"/><ComboBoxItem Content="波形示波器"/></ComboBox></StackPanel>
       <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="配色" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="PaletteCombo" Width="108" SelectionChanged="OnPaletteChanged" AutomationProperties.Name="仪表配色"><ComboBoxItem Content="经典蓝"/><ComboBoxItem Content="柔和多彩"/><ComboBoxItem Content="标准多彩"/></ComboBox></StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,8,0"><TextBlock Text="声谱色" Style="{StaticResource ControlLabel}"/><ComboBox x:Name="SpectrogramPaletteCombo" Width="108" SelectionChanged="OnSpectrogramPaletteChanged" AutomationProperties.Name="时间声谱与三维配色"><ComboBoxItem Content="跟随配色"/><ComboBoxItem Content="强度热力"/></ComboBox></StackPanel>
       <ToggleButton x:Name="AnalysisToggle" Content="分析参数" Style="{StaticResource SettingsToggle}" IsChecked="{Binding IsExpanded, ElementName=AdvancedExpander, Mode=TwoWay}"/>
       <ToggleButton x:Name="DisplayToggle" Content="显示设置" Style="{StaticResource SettingsToggle}" IsChecked="{Binding IsExpanded, ElementName=DisplayExpander, Mode=TwoWay}"/>
      </WrapPanel>
-     <WrapPanel x:Name="PaletteLegend" Visibility="Collapsed" Margin="5,5,0,2"/>
      <Expander x:Name="AdvancedExpander" Style="{StaticResource SettingsDetails}" Expanded="OnSettingsExpanded">
       <StackPanel>
        <WrapPanel Margin="0,7,0,4">
@@ -48,7 +56,7 @@
         <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><ComboBox x:Name="WindowCombo" Width="130" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="Hann"/><ComboBoxItem Content="Blackman-Harris"/><ComboBoxItem Content="Flat Top"/></ComboBox></StackPanel>
         <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="频率平滑" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><ComboBox x:Name="SmoothCombo" Width="92" SelectionChanged="OnAnalysisChanged"><ComboBoxItem Content="关闭"/><ComboBoxItem Content="1/24 oct"/><ComboBoxItem Content="1/12 oct"/><ComboBoxItem Content="1/6 oct"/><ComboBoxItem Content="1/3 oct"/></ComboBox></StackPanel>
         <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="显示斜率" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="12,0,0,0"/><Slider x:Name="TiltSlider" Width="85" Minimum="-6" Maximum="6" TickFrequency="0.5" IsSnapToTickEnabled="True" ValueChanged="OnAnalysisChanged" ToolTip="以 1 kHz 为基准修饰图形；不改变音频或测量数据"/><TextBlock x:Name="TiltLabel" Width="80" VerticalAlignment="Center" FontSize="10"/></StackPanel>
-        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="声谱范围" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="8,0,0,0"/><Slider x:Name="RangeSlider" Width="90" Minimum="30" Maximum="120" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="OnAnalysisChanged"/><TextBlock x:Name="RangeLabel" Width="50" VerticalAlignment="Center" FontSize="10"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="声谱范围" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="8,0,0,0"/><Slider x:Name="RangeSlider" ToolTip="强度热力颜色固定为 −130～0 dBFS；此项控制跟随配色色阶及三维高度范围" Width="90" Minimum="30" Maximum="120" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="OnAnalysisChanged"/><TextBlock x:Name="RangeLabel" Width="50" VerticalAlignment="Center" FontSize="10"/></StackPanel>
        </WrapPanel>
        <WrapPanel Margin="0,3,0,3">
         <StackPanel Orientation="Horizontal" Margin="0,0,9,0"><TextBlock Text="频率 Hz" VerticalAlignment="Center" Foreground="#A0A0A0" Margin="5,0,0,0"/><TextBox x:Name="MinFrequencyBox" Width="62" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/><TextBlock Text="—" VerticalAlignment="Center"/><TextBox x:Name="MaxFrequencyBox" Width="70" LostFocus="OnRangeEdited" KeyDown="OnRangeKey"/></StackPanel>

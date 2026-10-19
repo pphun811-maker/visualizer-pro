@@ -8,6 +8,7 @@ public sealed record DisplaySettings
 {
     public bool FrequencyColors { get; init; }
     public FrequencyPaletteKind FrequencyPalette { get; init; }
+    public bool SpectrogramIntensityColors { get; init; }
     public double SpectrumAttackMs { get; init; } = 35;
     public double StereoSensitivity { get; init; } = 1;
     public double StereoTrailMs { get; init; } = 100;
@@ -80,6 +81,7 @@ public sealed record AnalysisFrame(long Sequence, double Time, int SampleRate, A
     double[] Frequencies, float[] Spectrum, float[] Left, float[] Right, float[] Average, float[] Peaks,
     float[] PhaseLeft, float[] PhaseRight, MeterReading Meters)
 {
+    public SpectrogramSlice? Spectrogram { get; init; }
     public StereoBandReading[] StereoBands { get; init; } = [];
     public OctaveBandReading[] OctaveBands { get; init; } = [];
 }

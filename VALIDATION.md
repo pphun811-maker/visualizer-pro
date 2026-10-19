@@ -1,5 +1,34 @@
 # 验证记录
 
+## 2026-10-20 — v1.2.0 发布准备
+
+- v1.2.0 包含自绘窗口标题栏、精简面板按钮和顶部图例、独立强度配色，以及高分辨率瞬时声谱与逐物理像素着色。完整变更和验证见下方两轮记录。
+- 发布准备将 App 版本从 1.1.0 更新为 1.2.0，功能代码沿用本次会话已通过的版本：40 项 DSP/历史分析、GPU/软件各 11 组声谱检查、5 组细线稳定性和 12 组桌面回归。未重复长期实机或物理输入验收。
+- 正式便携包使用独立目录 `artifacts/releases/v1.2.0/VisualizerPro-win-x64`；ZIP、SHA256SUMS.txt 与发布清单放在 `artifacts/releases/v1.2.0`。旧 v1.1.0 正式包保留。
+
+## 2026-10-20 — 强度声谱清晰度与参考图色阶对齐
+
+- 用户反馈低频块状、画面发糊，要求更贴近先前参考图。本轮确认旧强度声谱复用了 FFT 曲线的频率平滑/显示包络，8192 点 FFT 在 192 kHz 输入下的低频格点间隔约 23.4 Hz；把这些格点铺到对数轴会形成宽色块。上一轮还把参考图 −130～0 dB 的色阶压入可调 80 dB 范围，导致暗部颜色不符。
+- 新增独立 SpectrogramAnalyzer / SpectrogramSlice：2048 对数频点、至多每秒 20 次的瞬时历史，不使用 FFT 曲线的平均、平滑和衰减。48 kHz 有效采样率使用 32768 / 8192 点 Hann 窗，200～400 Hz 在功率域过渡；较低采样率相应缩短窗口。高采样率先经过 Blackman 低通 FIR 再抽取，18～20 kHz 平滑过渡至原采样率 FFT，20 kHz 以上保留原 FFT 的频带峰值，避免混叠或丢失超声范围。对应窗口预热后才显示，避免开始时出现横向伪亮条。
+- 实时 AnalysisEngine 启用该附加数据，既有 FFT、倍频程、声场、电平、文件整曲分析算法保持原路径；普通 Analyzer / 整曲任务不默认执行附加分析。冻结二维探针和强度三维读取这份瞬时谱；因此可与带显示包络的 FFT 读数及原三维外形不同。
+- 新增 IntensitySpectrogramRaster，保存线性功率；时间缩小按面积积分，频率缩小时保留窄峰，放大在功率域插值。按物理像素算完能量后才映射参考颜色，一比一绘制，不再对 RGB 做二次线性模糊。频率分隔线对齐单个物理像素。经典蓝/频段配色保留原 SpectrogramRaster。
+- 强度颜色固定对应参考图的 −130～0 dBFS（14 个采样颜色节点保持不变），不受显示斜率、声谱范围或 FFT 上下限重分配。“声谱范围”仍控制跟随配色的色阶和三维高度；元信息、参数提示、F1、README 已说明。没有添加左侧颜色标尺。
+- 实际验证：Release 构建/本地 publish 成功，0 警告/0 错误；40 项 DSP/历史分析检查全通过，新增相邻 56/64 Hz 在 192 kHz 输入下可分离、瞬时谱没有显示衰减尾迹且 FFT/电平不变、抽取抗混叠且保留原超声峰、8/48/192 kHz 启动预热、反相立体声与 Mid 抵消。
+- 最终便携包 artifacts/spectrogram-detail-package/spectral.json 与 artifacts/spectrogram-detail-software/spectral.json 各 11 组通过，覆盖原图实际二维/三维 RGB、冻结/探针/保存/布局，以及 192 kHz 同信号前后渲染、像素边缘、窄事件缩放与实时绘制。两份 sharpness-metrics.json 的二维强度 3 秒短测：GPU 约 60.8 FPS / 平均单声谱绘图 3.95 ms，软件约 39.9 FPS / 5.76 ms，音频丢块均 0；这是 48 kHz 演示信号实时 UI 短测，不是 192 kHz 实机性能基准（192 kHz 是离线对照输入）。
+- artifacts/spectrogram-detail-stability/visual.json 的 5 组既有细线/环形缓冲/声场检查通过，保留 173/317/901 物理像素下单行亮度稳定性；artifacts/spectrogram-detail-integration/integration.json 的 12 组播放、整曲任务、设备恢复、全屏及解码回归通过。所有桌面测试使用隔离数据并退出。
+- 已目视检查最终包 sharpness-before.png / sharpness-after.png、二维/三维截图；对照图为同一段合成测试信号，未取得参考图对应音频，不能宣称实际音乐纹理逐像素相同。未做长期实机/物理输入验证。Git diff --check 仍受环境 this operation must be run in a work tree 限制；独立新增行尾空白检查为 0。
+- 更新本地开发便携目录和 ZIP、同步说明并验证主程序/程序集/文档哈希；没有更新 GitHub Release 或 artifacts/releases/v1.1.0 历史包。
+
+## 2026-10-20 — 按图清理界面、自绘标题栏与强度声谱
+
+- 删除四个仪表的放大/还原按钮、电平“读数 F1”和顶部频段颜色图例；保留双击放大、Esc 还原、F1 与底部帮助入口。主窗口标题仅为 Visualizer Pro，取消系统标题栏，使用中性灰自绘最小化、最大化/还原、关闭按钮；窗口模式保留顶部空白/Logo 拖动、双击最大化和边缘缩放。补充 WM_GETMINMAXINFO 工作区/最小尺寸约束，避免最大化越过任务栏；全屏仍覆盖整个屏幕。
+- 新增独立“声谱色 → 强度热力”，只作用于时间声谱和三维瀑布。用户明确要求直接使用参考图颜色：从参考 JPEG 左侧色阶的文字内部采样 14 个节点（-130 到 0，每 10 dB 一点），以最亮 15% 像素的 RGB 中位数减少黑色抗锯齿影响。渐变从暗绿/青、蓝紫、粉色、米黄至白色，不绘制颜色标尺。所选声谱范围决定颜色覆盖的电平范围；颜色依据实际电平，不叠加显示斜率。三维强度模式去掉原有蓝色轮廓线以避免染色，探针和选中切片仍为蓝色。
+- DisplaySettings.SpectrogramIntensityColors 默认 false，旧配置保持原配色。该开关独立保存，切换会重着色既有二维历史并使三维颜色缓存失效；不改变冻结帧、回看位置、几何或分析设置。其他仪表继续使用经典蓝/柔和多彩/标准多彩。
+- Release 构建通过，0 警告/0 错误；Publish.ps1 -SkipRestore 成功更新本地便携目录与 ZIP。最终包 artifacts/intensity-chrome-package/spectral.json 与 artifacts/intensity-chrome-software/spectral.json 各 10 组全通过：参考图弱/中/强节点的实际二维和三维 RGB、显示斜率下等电平跨频率同色、FFT 像素不变、冻结历史重着色/探针/保存恢复/旧配置、窗口按钮命中与最大化/还原/最小化、任务栏边界、全屏四边像素，以及 1120×740 与设置展开布局。源程序修正阶段 artifacts/intensity-chrome-source-fixed 同样 10 组通过。
+- 最终包 artifacts/intensity-chrome-integration/integration.json 的 12 组既有回归全部通过，包含首次全屏、文件播放/定位/A–B/冻结、整曲分析/取消、设备连接恢复及多格式解码。既有标准多彩三维 3 秒短测 GPU 约 102.2 FPS、软件约 24.5 FPS，丢块均为 0；不是强度模式的受控性能基准。
+- 已目视检查最终包二维强度/最大化与软件三维截图，以及源码最小窗口截图。所有桌面数据都在工作区独立 VISUALIZERPRO_DATA_DIR 内，测试窗口均退出，收尾无 VisualizerPro 进程。未重复 DSP、两小时实机长测、物理拖动/缩放或多显示器验证。git diff --check 仍被环境报错 this operation must be run in a work tree 阻断；独立对照 HEAD 的新增行尾空白检查为 0，未将其称作 Git diff 检查通过。
+- 本轮仅更新本地开发便携包，版本号仍为 1.1.0；未提交/推送或修改 GitHub Release v1.1.0 及其独立 artifacts/releases/v1.1.0 目录。
+
 ## 2026-10-20 — v1.1.0 发布
 
 - v1.1.0 汇总工具栏/参数区整理、移除面板数字切换按钮，以及经典蓝 / 柔和多彩 / 标准多彩三种配色。发布准备仅将 App 版本从 1.0.0 升为 1.1.0，功能源码沿用下方已验证实现；未重复桌面、DSP 或长期检查。

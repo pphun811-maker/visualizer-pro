@@ -22,7 +22,13 @@ public partial class MainWindow
             await CheckFrequencyAppearance(directory, 1);
             checks.Add("PASS soft palette: rendered FFT/heatmap RGB, zoom invariance, frozen style switching, unchanged analysis/3D geometry and persistence");
             await CheckFrequencyAppearance(directory, 2);
-            checks.Add("PASS standard palette: rendered FFT/heatmap RGB, zoom invariance, frozen style switching, legend/restore and legacy settings");
+            checks.Add("PASS standard palette: rendered FFT/heatmap RGB, zoom invariance, frozen style switching, restore and legacy settings");
+            await CheckIntensityAppearance(directory);
+            checks.Add("PASS reference-image intensity RGB in 2D/3D, equal-level colors, unchanged FFT/frozen data, cache refresh, probes and independent persistence");
+            await CheckDetailedSpectrogram(directory);
+            checks.Add("PASS detailed 192 kHz history, exact reference dB colors, sharp temporal edges, energy-preserving reduction and same-signal before/after captures");
+            await CheckWindowChrome(directory);
+            checks.Add("PASS custom caption controls, maximize/restore/minimize, taskbar-safe bounds and pixel-exact fullscreen");
             await CheckCompactAppearance(directory);
             checks.Add("PASS compact 1120x740 layout, analysis/display settings toggles and relocated exports");
             SpectrumModeCombo.SelectedIndex = 1; HistoryModeCombo.SelectedIndex = 0;

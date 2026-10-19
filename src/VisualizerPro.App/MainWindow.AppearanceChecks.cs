@@ -43,9 +43,6 @@ public partial class MainWindow
         Check(Math.Abs(beforeStyle.Red - afterStyle.Red) + Math.Abs(beforeStyle.Green - afterStyle.Green) + Math.Abs(beforeStyle.Blue - afterStyle.Blue) > 12, "Soft/standard switch must recolor existing frozen heatmap pixels");
         Check(ReferenceEquals(held, displayFrame) && ReferenceEquals(history, frozenHistory) && reviewAge == age, "Direct palette style change must preserve review data");
         PaletteCombo.SelectedIndex = paletteIndex;
-        var swatch = (SolidColorBrush)((TextBlock)PaletteLegend.Children[1]).Foreground;
-        var expectedSwatch = FrequencyPalette.GetColors(style)[0];
-        Check(swatch.Color.R == expectedSwatch.Red && swatch.Color.G == expectedSwatch.Green && swatch.Color.B == expectedSwatch.Blue, "Legend must use the current palette style");
         Spectrogram.TrackPointer(new Point(Spectrogram.FrequencyX(1100), Spectrogram.PlotBounds.Top + 1 / settings.HistorySeconds * Spectrogram.PlotBounds.Height));
         Check(Spectrogram.CursorLevelDbfs.HasValue, "Frozen multicolor heatmap must retain an inline probe");
         await Task.Delay(70); SaveScreenshot(Path.Combine(directory, "appearance-multicolor-fft.png"));
@@ -110,7 +107,7 @@ public partial class MainWindow
             var at = element.TranslatePoint(new Point(), root);
             Check(element.IsVisible && element.ActualWidth > 0 && at.X >= -.5 && at.Y >= -.5 && at.X + element.ActualWidth <= root.ActualWidth + .5 && at.Y + element.ActualHeight <= root.ActualHeight + .5, $"Compact layout clips {element.Name}");
         }
-        foreach (var control in new FrameworkElement[] { DeviceCombo, MoreButton, FreezeButton, PaletteCombo, AnalysisToggle, DisplayToggle, Spectrum, Spectrogram, Stereo, Levels }) Fits(control);
+        foreach (var control in new FrameworkElement[] { DeviceCombo, MoreButton, FreezeButton, MinimizeButton, MaximizeButton, CloseButton, PaletteCombo, SpectrogramPaletteCombo, AnalysisToggle, DisplayToggle, Spectrum, Spectrogram, Stereo, Levels }) Fits(control);
         SaveScreenshot(Path.Combine(directory, "appearance-1120.png"));
         AnalysisToggle.IsChecked = true; UpdateLayout();
         Check(AdvancedExpander.IsExpanded && !DisplayExpander.IsExpanded, "Analysis toggle must open its controls");

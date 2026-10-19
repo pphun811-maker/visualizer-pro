@@ -20,11 +20,13 @@ internal sealed class WaterfallMesh : IDisposable
     private readonly SKColor[] colors;
     private readonly int indexCount;
     private readonly SKVertices? mesh;
+    private readonly bool intensityColors;
     public int TriangleCount => indexCount / 3;
 
     public WaterfallMesh(IReadOnlyList<AnalysisFrame> history, SKRect bounds, double minimum, double maximum, double startAge, double span, AnalysisSettings settings, DisplaySettings display, WaterfallMesh? previous = null)
     {
         Bounds = bounds; Minimum = minimum; Maximum = maximum; StartAge = startAge; Span = span;
+        intensityColors = display.SpectrogramIntensityColors;
         Floor = settings.CeilingDb - settings.SpectrogramRange; Ceiling = settings.CeilingDb; Tilt = settings.TiltDbPerOctave;
         Columns = Math.Clamp((int)(bounds.Width / 3.5), 96, 192); Rows = (int)Math.Round(span * 20) + 1;
         skew = (float)(Math.Sin(display.WaterfallAzimuth * Math.PI / 180) * .33 * bounds.Width);
@@ -47,7 +49,7 @@ internal sealed class WaterfallMesh : IDisposable
                 var point = Project(sample.Item1, age, sample.Item2 + Tilt * Math.Log2(frequency / 1000));
                 int at = r * Columns + col;
                 Data[at] = new(point, sample.Item1, age, sample.Item2, frame != null); positions[at] = point;
-                colors[at] = FrequencyPalette.Heat((sample.Item2 + Tilt * Math.Log2(frequency / 1000) - Floor) / (Ceiling - Floor), frequency, display.FrequencyColors, display.FrequencyPalette);
+                colors[at] = display.SpectrogramIntensityColors ? FrequencyPalette.Intensity(sample.Item2) : FrequencyPalette.Heat((sample.Item2 + Tilt * Math.Log2(frequency / 1000) - Floor) / (Ceiling - Floor), frequency, display.FrequencyColors, display.FrequencyPalette);
             }
         }
         int written = 0;
@@ -66,15 +68,17 @@ internal sealed class WaterfallMesh : IDisposable
 
     private (double, double) Sample(AnalysisFrame frame, int column)
     {
+        var frequencies = intensityColors && frame.Spectrogram is { } slice ? slice.Frequencies : frame.Frequencies;
+        var levels = intensityColors && frame.Spectrogram is { } raw ? raw.Levels : frame.Spectrum;
         double u = column / (double)(Columns - 1), half = .5 / (Columns - 1);
         double low = Minimum * Math.Pow(Maximum / Minimum, Math.Max(0, u - half)), high = Minimum * Math.Pow(Maximum / Minimum, Math.Min(1, u + half));
-        int first = Array.BinarySearch(frame.Frequencies, low); if (first < 0) first = ~first;
-        int last = Array.BinarySearch(frame.Frequencies, high); if (last < 0) last = ~last - 1;
-        first = Math.Clamp(first, 0, frame.Spectrum.Length - 1); last = Math.Clamp(last, first, frame.Spectrum.Length - 1);
+        int first = Array.BinarySearch(frequencies, low); if (first < 0) first = ~first;
+        int last = Array.BinarySearch(frequencies, high); if (last < 0) last = ~last - 1;
+        first = Math.Clamp(first, 0, levels.Length - 1); last = Math.Clamp(last, first, levels.Length - 1);
         int peak = first;
-        for (int i = first + 1; i <= last; i++) if (frame.Spectrum[i] > frame.Spectrum[peak]) peak = i;
-        double actual = column == 0 ? 0 : column == Columns - 1 ? 1 : Math.Clamp(Math.Log(frame.Frequencies[peak] / Minimum) / Math.Log(Maximum / Minimum), 0, 1);
-        return (actual, frame.Spectrum[peak]);
+        for (int i = first + 1; i <= last; i++) if (levels[i] > levels[peak]) peak = i;
+        double actual = column == 0 ? 0 : column == Columns - 1 ? 1 : Math.Clamp(Math.Log(frequencies[peak] / Minimum) / Math.Log(Maximum / Minimum), 0, 1);
+        return (actual, levels[peak]);
     }
 
     public SKPoint Project(double u, double age, double displayedDb)
@@ -100,6 +104,8 @@ internal sealed class WaterfallMesh : IDisposable
         if (mesh == null) return;
         using var paint = new SKPaint { Color = SKColors.White, IsAntialias = true };
         canvas.DrawVertices(mesh, SKBlendMode.Modulate, paint);
+        // Preserve the sampled intensity colors; blue contour strokes would tint them.
+        if (intensityColors) return;
         using var stroke = new SKPaint { Color = new SKColor(125, 167, 231, 55), IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = .65f };
         for (int row = Rows - 1; row >= 0; row -= Math.Max(1, Rows / 32))
         {

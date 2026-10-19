@@ -100,7 +100,7 @@ public partial class MainWindow
             ToggleExpand(InstrumentKind.Stereo); Check(Instruments.IsVisible, "Restore panel");
             await Task.Delay(200); Check(Stereo.Renderer == rendererBeforeExpand, "Reparenting must preserve rendering backend");
             OnFocus(this, new RoutedEventArgs()); OnFocus(this, new RoutedEventArgs());
-            SetFullScreen(false); Check(WindowStyle == WindowStyle.SingleBorderWindow, "Exit fullscreen");
+            SetFullScreen(false); Check(WindowStyle == WindowStyle.None && System.Windows.Shell.WindowChrome.GetWindowChrome(this) != null, "Exit fullscreen with custom chrome");
             SetFullScreen(true); Check(WindowStyle == WindowStyle.None, "Enter fullscreen");
             results.Add("PASS focus mode, panel expansion and fullscreen round trip");
 

@@ -9,10 +9,18 @@ namespace VisualizerPro.App;
 
 public partial class MainWindow
 {
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i); yield return child;
+            foreach (var nested in Descendants(child)) yield return nested;
+        }
+    }
+
     private async Task CheckPanelControls(string directory)
     {
         void Press(Key key) => RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(this)!, 0, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
-        void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         SpectrumModeCombo.SelectedIndex = HistoryModeCombo.SelectedIndex = SecondaryInstrumentCombo.SelectedIndex = 0;
         if (!frozen) ToggleFreeze();
         var held = displayFrame; var analysis = engine.Settings;
@@ -41,25 +49,22 @@ public partial class MainWindow
         ControlsPanel.Visibility = Visibility.Collapsed;
         foreach (var panel in panels)
         {
-            Click(panel.ExpandButton); await Task.Delay(30); UpdateLayout();
-            Check(expanded == panel.Kind && panel.ExpandedView && Equals(panel.ExpandButton.Content, "还原"), "Panel expand button and caption");
+            ExpandInstrument(panel.Kind); await Task.Delay(30); UpdateLayout();
+            Check(expanded == panel.Kind && panel.ExpandedView, "Panel expansion through the double-click handler");
+            Check(!Descendants(panel).OfType<Button>().Any(), "Instrument headers must contain no action buttons");
             if (panel.Kind != InstrumentKind.Levels)
             {
                 Press(panel.Kind switch { InstrumentKind.Spectrum => Key.D1, InstrumentKind.Spectrogram => Key.D2, _ => Key.D3 });
                 Check(ReferenceEquals(held, displayFrame), "Expanded panel switch must preserve review data");
             }
-            var center = panel.ExpandButton.TranslatePoint(new Point(panel.ExpandButton.ActualWidth / 2, panel.ExpandButton.ActualHeight / 2), panel);
-            var hit = panel.InputHitTest(center) as DependencyObject;
-            while (hit != null && hit is not Button) hit = VisualTreeHelper.GetParent(hit);
-            Check(ReferenceEquals(hit, panel.ExpandButton), "Header control must receive hit tests above the GPU surface");
-            Click(panel.ExpandButton);
-            Check(expanded == null && !panel.ExpandedView && Equals(panel.ExpandButton.Content, "放大"), "Panel restore button");
+            Press(Key.Escape);
+            Check(expanded == null && !panel.ExpandedView, "Escape restores the expanded panel");
         }
         ControlsPanel.Visibility = controlsVisible ? Visibility.Visible : Visibility.Collapsed;
         Press(Key.F1); await Task.Delay(80);
         Check(shortcutsWindow?.IsVisible == true && ShortcutGuide.Contains("1：FFT") && ShortcutGuide.Contains("2：二维") && ShortcutGuide.Contains("3 或 V"), "F1 must expose current shortcuts");
-        var guide = shortcutsWindow!; Click(Levels.HelpButton);
-        Check(ReferenceEquals(guide, shortcutsWindow), "Help button must reuse the existing help window");
+        var guide = shortcutsWindow!; Press(Key.F1);
+        Check(ReferenceEquals(guide, shortcutsWindow), "F1 must reuse the existing help window");
         var helpImage = new RenderTargetBitmap((int)guide.ActualWidth, (int)guide.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         helpImage.Render(guide); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(helpImage));
         using (var stream = File.Create(Path.Combine(directory, "shortcuts.png"))) encoder.Save(stream);

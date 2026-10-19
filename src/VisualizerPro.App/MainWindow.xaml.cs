@@ -63,8 +63,6 @@ public partial class MainWindow : Window
             panel.RangeChanged += SetFrequencyRange;
             panel.BandChanged += (low, high) => { Spectrum.SetBand(low, high); Spectrogram.SetBand(low, high); if (frozen) Redraw(); };
             panel.ExpandRequested += ExpandInstrument;
-            panel.HeaderExpandRequested += ToggleExpand;
-            panel.HelpRequested += ShowShortcutGuide;
         }
         Overview.SeekRequested += Seek; InitializeInteraction(); InitializeExploration();
         system.Error += message => Dispatcher.BeginInvoke(() => { stateText = "设备连接中断，正在等待恢复：" + message; system.Dispose(); engine.Reset(); ClearDisplay(); });
@@ -613,15 +611,18 @@ public partial class MainWindow : Window
         {
             windowBounds = WindowState == WindowState.Normal ? new Rect(Left, Top, ActualWidth, ActualHeight) : RestoreBounds;
             var screen = CurrentScreen();
+            System.Windows.Shell.WindowChrome.SetWindowChrome(this, null);
             WindowState = WindowState.Normal; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
             fullScreen = true; PositionOn(screen);
         }
         else
         {
-            fullScreen = false; WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize;
+            fullScreen = false; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.CanResize;
+            System.Windows.Shell.WindowChrome.SetWindowChrome(this, CreateWindowChrome());
             MinWidth = 1120; MinHeight = 740;
             Left = windowBounds.Left; Top = windowBounds.Top; Width = windowBounds.Width; Height = windowBounds.Height;
         }
+        UpdateMaximizeIcon();
     }
     private Forms.Screen CurrentScreen() => Forms.Screen.AllScreens.FirstOrDefault(s => s.DeviceName == saved.Monitor) ?? Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle);
     private void PositionOn(Forms.Screen screen)
@@ -639,6 +640,10 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
     private IntPtr WindowMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (message == 0x0024 && !fullScreen)
+        {
+            ConstrainMaximizedWindow(hwnd, lParam); handled = true; return IntPtr.Zero;
+        }
         // Preserve the last composited frame during the native move/resize loop.
         // D3D/OpenGL interop locks otherwise compete with DWM and stall dragging.
         if (message == 0x0231) { movingWindow = true; UpdateRenderActivity(); }
